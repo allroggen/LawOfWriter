@@ -1,0 +1,64 @@
+@page "/logout"
+@using LawOfWriter.Services
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
+    <MudPaper Elevation="3" Class="pa-8">
+        <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">Abmelden</MudText>
+        
+        @if (_isLoggingOut)
+        {
+            <MudProgressCircular Class="mx-auto" Indeterminate="true"/>
+            <MudText Align="Align.Center" Class="mt-4">Sie werden abgemeldet...</MudText>
+        }
+        else if (_logoutSuccess)
+        {
+            <MudAlert Severity="Severity.Success" Class="mb-4">Sie wurden erfolgreich abgemeldet.</MudAlert>
+            <MudText Align="Align.Center" Class="mt-4">Sie werden zur Login-Seite weitergeleitet...</MudText>
+        }
+        else
+        {
+            <MudText Align="Align.Center" Class="mb-4">Möchten Sie sich wirklich abmelden?</MudText>
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       FullWidth="true"
+                       OnClick="HandleLogout"
+                       Class="mb-2">
+                Ja, abmelden
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" 
+                       Color="Color.Secondary" 
+                       FullWidth="true"
+                       OnClick="@(() => NavigationManager.NavigateTo("/start"))">
+                Abbrechen
+            </MudButton>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private bool _isLoggingOut;
+    private bool _logoutSuccess;
+
+    private async Task HandleLogout()
+    {
+        _isLoggingOut = true;
+        StateHasChanged();
+
+        await AuthService.LogoutAsync();
+
+        if (AuthStateProvider is CustomAuthStateProvider customAuthStateProvider)
+        {
+            customAuthStateProvider.NotifyUserLogout();
+        }
+
+        _isLoggingOut = false;
+        _logoutSuccess = true;
+        StateHasChanged();
+
+        await Task.Delay(2000); // Zeige Erfolgsmeldung für 2 Sekunden
+        NavigationManager.NavigateTo("/");
+    }
+}

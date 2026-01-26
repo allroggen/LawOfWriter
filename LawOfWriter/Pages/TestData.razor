@@ -1,0 +1,106 @@
+@page "/testdata"
+@using LawOfWriter.Services
+@using LawOfWriter.Models
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+
+<AuthorizeView>
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">
+            <MudPaper Elevation="3" Class="pa-8">
+                <MudText Typo="Typo.h4" GutterBottom="true">Test-Daten</MudText>
+                
+                @if (_isLoading)
+                {
+                    <MudProgressLinear Indeterminate="true" Class="mb-4"/>
+                }
+                
+                @if (_testData != null)
+                {
+                    <MudAlert Severity="Severity.Success" Class="mb-4">
+                        Daten erfolgreich abgerufen!
+                    </MudAlert>
+                    
+                    <MudTextField Label="Benutzer" 
+                                  Value="_testData.User" 
+                                  Variant="Variant.Outlined" 
+                                  ReadOnly="true"
+                                  Class="mb-4"/>
+                    
+                    <MudTextField Label="Nachricht" 
+                                  Value="_testData.Message" 
+                                  Variant="Variant.Outlined" 
+                                  ReadOnly="true"
+                                  Class="mb-4"/>
+                }
+                else if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <MudAlert Severity="Severity.Error">@_errorMessage</MudAlert>
+                }
+                
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           OnClick="LoadTestData"
+                           Disabled="_isLoading"
+                           Class="mt-4">
+                    Test-Daten laden
+                </MudButton>
+                
+                <MudButton Variant="Variant.Outlined" 
+                           Color="Color.Secondary" 
+                           OnClick="HandleLogout"
+                           Class="mt-4 ml-4">
+                    Abmelden
+                </MudButton>
+            </MudPaper>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">
+            <MudAlert Severity="Severity.Warning">
+                Sie müssen sich zuerst anmelden.
+            </MudAlert>
+        </MudContainer>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private TestDataResponse? _testData;
+    private string _errorMessage = "";
+    private bool _isLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        if (!isAuthenticated)
+        {
+            NavigationManager.NavigateTo("/login");
+        }
+    }
+
+    private async Task LoadTestData()
+    {
+        _errorMessage = "";
+        _isLoading = true;
+        _testData = null;
+
+        var data = await AuthService.GetTestDataAsync();
+
+        if (data != null)
+        {
+            _testData = data;
+        }
+        else
+        {
+            _errorMessage = "Fehler beim Laden der Test-Daten. Bitte versuchen Sie es erneut.";
+        }
+
+        _isLoading = false;
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        NavigationManager.NavigateTo("/login");
+    }
+}

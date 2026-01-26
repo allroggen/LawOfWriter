@@ -1,0 +1,12 @@
+﻿<MudNavMenu>
+  <AuthorizeView>
+    <Authorized>
+      <MudNavLink Href="/start" Match="NavLinkMatch.Prefix">Start</MudNavLink>
+      <MudNavLink Href="/logout" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Logout">Abmelden</MudNavLink>
+    </Authorized>
+    <NotAuthorized>
+      <MudNavLink Href="/" Match="NavLinkMatch.All">Login</MudNavLink>
+    </NotAuthorized>
+  </AuthorizeView>
+  
+</MudNavMenu>

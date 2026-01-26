@@ -1,0 +1,91 @@
+@page "/"
+@using LawOfWriter.Services
+@using LawOfWriter.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
+    <MudPaper Elevation="3" Class="pa-8">
+        <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">Login</MudText>
+        
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMessage</MudAlert>
+        }
+
+        <MudForm @ref="_form">
+            <MudTextField @bind-Value="_email" 
+                          Label="E-Mail" 
+                          Variant="Variant.Outlined" 
+                          Required="true"
+                          RequiredError="E-Mail ist erforderlich"
+                          InputType="InputType.Email"
+                          Class="mb-4"/>
+            
+            <MudTextField @bind-Value="_password" 
+                          Label="Passwort" 
+                          Variant="Variant.Outlined" 
+                          Required="true"
+                          RequiredError="Passwort ist erforderlich"
+                          InputType="InputType.Password"
+                          Class="mb-4"/>
+            
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       FullWidth="true"
+                       OnClick="HandleLogin"
+                       Disabled="_isLoading">
+                @if (_isLoading)
+                {
+                    <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true"/>
+                    <MudText>Anmelden...</MudText>
+                }
+                else
+                {
+                    <MudText>Anmelden</MudText>
+                }
+            </MudButton>
+        </MudForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private MudForm? _form;
+    private string _email = "";
+    private string _password = "";
+    private string _errorMessage = "";
+    private bool _isLoading;
+
+    private async Task HandleLogin()
+    {
+        _errorMessage = "";
+        _isLoading = true;
+
+        if (string.IsNullOrWhiteSpace(_email) || string.IsNullOrWhiteSpace(_password))
+        {
+            _errorMessage = "Bitte füllen Sie alle Felder aus.";
+            _isLoading = false;
+            return;
+        }
+
+        var success = await AuthService.LoginAsync(_email, _password);
+
+        if (success)
+        {
+            if (AuthStateProvider is CustomAuthStateProvider customAuthStateProvider)
+            {
+                customAuthStateProvider.NotifyUserAuthentication();
+            }
+            
+            NavigationManager.NavigateTo("/start");
+        }
+        else
+        {
+            _errorMessage = "Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Zugangsdaten.";
+        }
+
+        _isLoading = false;
+    }
+}
