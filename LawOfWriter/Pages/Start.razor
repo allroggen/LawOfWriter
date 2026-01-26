@@ -1,10 +1,10 @@
 ﻿@page "/start"
 @using LawOfWriter.Services
 @using LawOfWriter.Models
-@using Microsoft.JSInterop
-@inject ApiService ApiService
-@inject AuthService AuthService
-@inject IJSRuntime JS
+@inject ApiService apiService
+@inject AuthService authService
+@inject IJSRuntime js
+@inject NavigationManager navigationManager
 
 @attribute [Authorize]
 
@@ -51,18 +51,18 @@
     {
         try
         {
-            isAuthenticated = await AuthService.IsAuthenticatedAsync();
-            var token = await AuthService.GetTokenAsync();
+            isAuthenticated = await authService.IsAuthenticatedAsync();
+            var token = await authService.GetTokenAsync();
             if (!string.IsNullOrEmpty(token) && token.Length > 20)
             {
                 tokenPreview = token.Substring(0, 20);
             }
-            await JS.InvokeVoidAsync("console.log", $"Authentication status: {isAuthenticated}");
-            await JS.InvokeVoidAsync("console.log", $"Token available: {!string.IsNullOrEmpty(token)}");
+            await js.InvokeVoidAsync("console.log", $"Authentication status: {isAuthenticated}");
+            await js.InvokeVoidAsync("console.log", $"Token available: {!string.IsNullOrEmpty(token)}");
         }
         catch (Exception ex)
         {
-            await JS.InvokeVoidAsync("console.error", $"Error checking auth status: {ex.Message}");
+            await js.InvokeVoidAsync("console.error", $"Error checking auth status: {ex.Message}");
         }
     }
 
@@ -70,20 +70,23 @@
     {
         try
         {
-            await JS.InvokeVoidAsync("console.log", "LoadTestData started");
+            await js.InvokeVoidAsync("console.log", "LoadTestData started");
             errorMessage = null;
             // Beispiel: GET Request - der Bearer Token wird automatisch hinzugefügt
-            await JS.InvokeVoidAsync("console.log", "Making API call to /data/test");
-            await JS.InvokeVoidAsync("console.log", "Full URL will be: https://die.sinnnlosen.de/api/data/test");
-            testData = await ApiService.GetAsync<TestDataResponse>("data/test");
-            await JS.InvokeVoidAsync("console.log", $"API call successful: {testData != null}");    
-            await JS.InvokeVoidAsync("console.log", "API Response:", testData);
+            await js.InvokeVoidAsync("console.log", "Making API call to /data/test");
+            await js.InvokeVoidAsync("console.log", "Full URL will be: https://die.sinnnlosen.de/api/data/test");
+            testData = await apiService.GetAsync<TestDataResponse>("data/test");
+            await js.InvokeVoidAsync("console.log", $"API call successful: {testData != null}");    
+            await js.InvokeVoidAsync("console.log", "API Response:", testData);
+            
+            
+            navigationManager.NavigateTo("/game");
         }
         catch (HttpRequestException ex)
         {
-            await JS.InvokeVoidAsync("console.error", $"HTTP Error in LoadTestData: {ex.Message}");
-            await JS.InvokeVoidAsync("console.error", $"Status Code: {ex.StatusCode}");
-            await JS.InvokeVoidAsync("console.error", $"Stack trace: {ex.StackTrace}");
+            await js.InvokeVoidAsync("console.error", $"HTTP Error in LoadTestData: {ex.Message}");
+            await js.InvokeVoidAsync("console.error", $"Status Code: {ex.StatusCode}");
+            await js.InvokeVoidAsync("console.error", $"Stack trace: {ex.StackTrace}");
             
             if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
@@ -108,9 +111,9 @@
         }
         catch (Exception ex)
         {
-            await JS.InvokeVoidAsync("console.error", $"Error in LoadTestData: {ex.Message}");
-            await JS.InvokeVoidAsync("console.error", $"Error Type: {ex.GetType().Name}");
-            await JS.InvokeVoidAsync("console.error", $"Stack trace: {ex.StackTrace}");
+            await js.InvokeVoidAsync("console.error", $"Error in LoadTestData: {ex.Message}");
+            await js.InvokeVoidAsync("console.error", $"Error Type: {ex.GetType().Name}");
+            await js.InvokeVoidAsync("console.error", $"Stack trace: {ex.StackTrace}");
             errorMessage = ex.Message;
         }
     }

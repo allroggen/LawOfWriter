@@ -1,0 +1,45 @@
+@page "/game"
+@using LawOfWriter.Services
+@using LawOfWriter.Models
+@inject ApiService apiService
+@inject AuthService authService
+@inject IJSRuntime js
+@attribute [Authorize]
+
+
+@if (_gameDays is not null)
+{
+    <MudDataGrid T="GameDay" Items="@_gameDays">
+        <Columns>
+            <PropertyColumn Property="p=>p.id"/>
+            <PropertyColumn Property="p=>p.gameDay1"/>
+        </Columns>
+    </MudDataGrid>
+}
+
+@code {
+    
+    private List<GameDay>? _gameDays = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGameData();
+    }
+
+
+    private async Task LoadGameData()
+    {
+        try
+        {
+            _gameDays= await apiService.GetAsync<List<GameDay>>("data/game");
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+
+
+    }
+}
