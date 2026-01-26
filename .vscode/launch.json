@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "blazorwasm",
+      "name": "Debug Blazor WebAssembly",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/LawOfWriter",
+      "url": "http://localhost:62720"
+    }
+  ]
+}

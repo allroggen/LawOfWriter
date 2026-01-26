@@ -1,9 +1,135 @@
 ﻿@page "/start"
+@using LawOfWriter.Services
+@using LawOfWriter.Models
+@using Microsoft.JSInterop
+@inject ApiService ApiService
+@inject AuthService AuthService
+@inject IJSRuntime JS
 
 @attribute [Authorize]
 
 <h3>Start</h3>
 
-@code {
-    
+<div class="mb-3">
+    <h5>Authentication Status</h5>
+    <p>Authenticated: @isAuthenticated</p>
+    @if (!string.IsNullOrEmpty(tokenPreview))
+    {
+        <p>Token: @tokenPreview...</p>
+    }
+</div>
+
+<button @onclick="LoadTestData">Test API Call</button>
+
+@if (testData != null)
+{
+    <div>
+        <h4>API Response:</h4>
+        <pre>@System.Text.Json.JsonSerializer.Serialize(testData, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })</pre>
+    </div>
 }
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div style="color: red;">
+        <p>Error: @errorMessage</p>
+    </div>
+}
+
+@code {
+    private TestDataResponse? testData;
+    private string? errorMessage;
+    private bool isAuthenticated = false;
+    private string? tokenPreview;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckAuthenticationStatus();
+    }
+
+    private async Task CheckAuthenticationStatus()
+    {
+        try
+        {
+            isAuthenticated = await AuthService.IsAuthenticatedAsync();
+            var token = await AuthService.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token) && token.Length > 20)
+            {
+                tokenPreview = token.Substring(0, 20);
+            }
+            await JS.InvokeVoidAsync("console.log", $"Authentication status: {isAuthenticated}");
+            await JS.InvokeVoidAsync("console.log", $"Token available: {!string.IsNullOrEmpty(token)}");
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("console.error", $"Error checking auth status: {ex.Message}");
+        }
+    }
+
+    private async Task LoadTestData()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("console.log", "LoadTestData started");
+            errorMessage = null;
+            // Beispiel: GET Request - der Bearer Token wird automatisch hinzugefügt
+            await JS.InvokeVoidAsync("console.log", "Making API call to /data/test");
+            await JS.InvokeVoidAsync("console.log", "Full URL will be: https://die.sinnnlosen.de/api/data/test");
+            testData = await ApiService.GetAsync<TestDataResponse>("data/test");
+            await JS.InvokeVoidAsync("console.log", $"API call successful: {testData != null}");    
+            await JS.InvokeVoidAsync("console.log", "API Response:", testData);
+        }
+        catch (HttpRequestException ex)
+        {
+            await JS.InvokeVoidAsync("console.error", $"HTTP Error in LoadTestData: {ex.Message}");
+            await JS.InvokeVoidAsync("console.error", $"Status Code: {ex.StatusCode}");
+            await JS.InvokeVoidAsync("console.error", $"Stack trace: {ex.StackTrace}");
+            
+            if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                errorMessage = $"❌ 404 Not Found: The endpoint 'https://die.sinnnlosen.de/api/data/test' was not found.\n\n" +
+                              "Possible causes:\n" +
+                              "1. The API server might not be running\n" +
+                              "2. The endpoint path might have changed\n" +
+                              "3. You might need to login first to get a valid token\n\n" +
+                              "Try:\n" +
+                              "• Check if you're logged in (go to /login)\n" +
+                              "• Verify the API is running at https://die.sinnnlosen.de/api\n" +
+                              "• Check the browser console (F12) for more details";
+            }
+            else if (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                errorMessage = $"❌ 401 Unauthorized: You need to login first. Go to /login";
+            }
+            else
+            {
+                errorMessage = $"HTTP {ex.StatusCode}: {ex.Message}";
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("console.error", $"Error in LoadTestData: {ex.Message}");
+            await JS.InvokeVoidAsync("console.error", $"Error Type: {ex.GetType().Name}");
+            await JS.InvokeVoidAsync("console.error", $"Stack trace: {ex.StackTrace}");
+            errorMessage = ex.Message;
+        }
+    }
+
+    // Weitere Beispiele für die Verwendung:
+    
+    // GET mit eigenem Response-Typ:
+    // var games = await ApiService.GetAsync<List<RootGame>>("/games");
+    
+    // POST mit Request und Response:
+    // var newGame = await ApiService.PostAsync<CreateGameRequest, RootGame>("/games", createRequest);
+    
+    // POST ohne Response:
+    // var success = await ApiService.PostAsync("/games/action", actionData);
+    
+    // PUT:
+    // var updated = await ApiService.PutAsync<UpdateRequest, GameDay>("/games/123/day", updateData);
+    
+    // DELETE:
+    // var deleted = await ApiService.DeleteAsync("/games/123");
+}
+

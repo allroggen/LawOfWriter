@@ -12,7 +12,7 @@ public class AuthService
     private const string TokenKey = "authToken";
     private const string TokenExpiryKey = "authTokenExpiry";
     private const string ApiBaseUrl = "https://die.sinnnlosen.de/api";
-    private const int TokenExpiryHours = 24; // Token läuft nach 24 Stunden ab
+    private const int TokenExpiryHours = 12; // Token läuft nach 12 Stunden ab
 
     public AuthService(HttpClient httpClient, IJSRuntime jsRuntime)
     {

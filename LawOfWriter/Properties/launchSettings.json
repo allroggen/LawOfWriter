@@ -3,10 +3,11 @@
     "LawOfWriter": {
       "commandName": "Project",
       "launchBrowser": true,
+      "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "applicationUrl": "https://localhost:62719;http://localhost:62720"
+      "applicationUrl": "http://localhost:62720"
     }
   }
 }

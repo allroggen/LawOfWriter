@@ -4,17 +4,41 @@ using LawOfWriter;
 using LawOfWriter.Services;
 using MudBlazor.Services;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.Logging;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
+
+// Enable browser console logging
+builder.Logging.SetMinimumLevel(LogLevel.Debug);
+builder.Logging.AddFilter("Microsoft", LogLevel.Information);
+
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+// Standard HttpClient für die App
+builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
 // Authentication Services
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
 builder.Services.AddAuthorizationCore();
+
+// API Services mit automatischer Bearer Token Injection
+builder.Services.AddScoped<ApiAuthorizationHandler>(sp =>
+{
+    var authService = sp.GetRequiredService<AuthService>();
+    var logger = sp.GetRequiredService<ILogger<ApiAuthorizationHandler>>();
+    return new ApiAuthorizationHandler(authService, logger);
+});
+
+builder.Services.AddScoped<ApiService>(sp =>
+{
+    var handler = sp.GetRequiredService<ApiAuthorizationHandler>();
+    var logger = sp.GetRequiredService<ILogger<ApiService>>();
+    handler.InnerHandler = new HttpClientHandler();
+    var httpClient = new HttpClient(handler);
+    return new ApiService(httpClient, logger);
+});
 
 builder.Services.AddMudServices();
 
