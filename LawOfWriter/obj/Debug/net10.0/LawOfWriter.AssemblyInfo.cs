@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("LawOfWriter")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+dcf700bfd42f302eed6902958e54d3edba3c8b46")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1bae097605aa4c6591c42f26b7c5bf1857476878")]
 [assembly: System.Reflection.AssemblyProductAttribute("LawOfWriter")]
 [assembly: System.Reflection.AssemblyTitleAttribute("LawOfWriter")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

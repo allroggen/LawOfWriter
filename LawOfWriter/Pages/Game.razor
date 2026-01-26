@@ -1,25 +1,51 @@
 @page "/game"
 @using LawOfWriter.Services
 @using LawOfWriter.Models
+@using LawOfWriter.Pages.Component
 @inject ApiService apiService
 @inject AuthService authService
 @inject IJSRuntime js
 @attribute [Authorize]
 
 
-@if (_gameDays is not null)
+@if (!_showDetails)
 {
-    <MudDataGrid T="GameDay" Items="@_gameDays">
+    <MudDataGrid T="GameDay" Items="@_gameDays" @bind-SelectedItem="_selectedGameDay" SelectOnRowClick="true">
         <Columns>
             <PropertyColumn Property="p=>p.id"/>
             <PropertyColumn Property="p=>p.gameDay1"/>
+            <TemplateColumn>
+                <CellTemplate>
+                    <MudButton OnClick="@(() => ShowDetails(context.Item))" Variant="Variant.Text">Details</MudButton>
+                </CellTemplate>
+            </TemplateColumn>
         </Columns>
     </MudDataGrid>
 }
+else if (_selectedGameDay is not null)
+{
+    <MudButton OnClick="@BackToList" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">Zurück
+    </MudButton>
+    <GameDetails gameDay="_selectedGameDay"/>
+}
 
 @code {
-    
+
     private List<GameDay>? _gameDays = new();
+    private GameDay? _selectedGameDay;
+    private bool _showDetails = false;
+
+    private void ShowDetails(GameDay gameDay)
+    {
+        _selectedGameDay = gameDay;
+        _showDetails = true;
+    }
+
+    private void BackToList()
+    {
+        _showDetails = false;
+        _selectedGameDay = null;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -31,7 +57,7 @@
     {
         try
         {
-            _gameDays= await apiService.GetAsync<List<GameDay>>("data/game");
+            _gameDays = await apiService.GetAsync<List<GameDay>>("data/game");
             await InvokeAsync(StateHasChanged);
         }
         catch (Exception e)
@@ -39,7 +65,6 @@
             Console.WriteLine(e);
             throw;
         }
-
-
     }
+
 }
