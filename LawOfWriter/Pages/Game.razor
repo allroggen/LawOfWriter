@@ -10,10 +10,10 @@
 
 @if (!_showDetails)
 {
-    <MudDataGrid T="GameDay" Items="@_gameDays" @bind-SelectedItem="_selectedGameDay" SelectOnRowClick="true">
+    <MudDataGrid T="RootGame" Items="@_gameDays" @bind-SelectedItem="_selectedGameDay" SelectOnRowClick="true">
         <Columns>
-            <PropertyColumn Property="p=>p.id"/>
-            <PropertyColumn Property="p=>p.gameDay1"/>
+            <PropertyColumn Property="p=>p.gameDay.id"/>
+            <PropertyColumn Property="p=>p.gameDay.gameDay1"/>
             <TemplateColumn>
                 <CellTemplate>
                     <MudButton OnClick="@(() => ShowDetails(context.Item))" Variant="Variant.Text">Details</MudButton>
@@ -31,11 +31,11 @@ else if (_selectedGameDay is not null)
 
 @code {
 
-    private List<GameDay>? _gameDays = new();
-    private GameDay? _selectedGameDay;
+    private List<RootGame>? _gameDays = new();
+    private RootGame? _selectedGameDay;
     private bool _showDetails = false;
 
-    private void ShowDetails(GameDay gameDay)
+    private void ShowDetails(RootGame gameDay)
     {
         _selectedGameDay = gameDay;
         _showDetails = true;
@@ -57,7 +57,7 @@ else if (_selectedGameDay is not null)
     {
         try
         {
-            _gameDays = await apiService.GetAsync<List<GameDay>>("data/game");
+            _gameDays = await apiService.GetAsync<List<RootGame>>("data/game");
             await InvokeAsync(StateHasChanged);
         }
         catch (Exception e)

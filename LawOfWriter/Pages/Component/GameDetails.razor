@@ -1,7 +1,18 @@
 @using LawOfWriter.Models
 <h3>GameDetails</h3>
-<h3>@gameDay.id</h3>
+<h3>@gameDay.gameDay.id</h3>
+
+<MudDataGrid T="GameAction" Items="@gameDay.gameAction">
+    <Columns>
+        <PropertyColumn Property="x=>x.userId"/>
+        <PropertyColumn Property="x=>x.band"/>
+        <PropertyColumn Property="x=>x.pumpe"/>
+        <PropertyColumn Property="x=>x.kranz"/>
+    </Columns>
+</MudDataGrid>
+
+
 
 @code {
-    [Parameter] public required GameDay gameDay { get; set; }
+    [Parameter] public required RootGame gameDay { get; set; }
 }

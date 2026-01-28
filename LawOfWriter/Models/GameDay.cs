@@ -28,5 +28,5 @@ public class GameDay {
     public bool isDummy { get; set; }
 
     [JsonPropertyName("games")]
-    public List<object> games { get; set; }
+    public List<GameAction> games { get; set; }
 }

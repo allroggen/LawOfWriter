@@ -5,7 +5,7 @@ var e=!1;const t=async()=>WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,
   "mainAssemblyName": "LawOfWriter",
   "applicationEnvironment": "Development",
   "resources": {
-    "hash": "sha256-ypAYbrmuCg4qdwFtrysEKN9W4bR0n0bMqkp9l5Ihgio=",
+    "hash": "sha256-CtJelOjNQoi/3cUkZHYBsAgCjjLw+ohFwDJ31Dit+R4=",
     "jsModuleNative": [
       {
         "name": "dotnet.native.xanz2e7ksm.js"
@@ -1064,15 +1064,15 @@ var e=!1;const t=async()=>WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,
       },
       {
         "virtualPath": "LawOfWriter.wasm",
-        "name": "LawOfWriter.4zxwstnzt7.wasm",
-        "integrity": "sha256-ACxAr72+I5Lb515Q2riBwt0pFfvcUiBQT0RLS1itExQ="
+        "name": "LawOfWriter.mlo27cg2ym.wasm",
+        "integrity": "sha256-CoCMB72buG4ylgXbsPwbSar6Ransnp4hQz5CBbogXfw="
       }
     ],
     "pdb": [
       {
         "virtualPath": "LawOfWriter.pdb",
-        "name": "LawOfWriter.wiw2a04wos.pdb",
-        "integrity": "sha256-2GQx6aDQ+u7nWcRWoy6RhPQSWQUpHOeZAn8bnCcS+Jw="
+        "name": "LawOfWriter.v2hyy9m78r.pdb",
+        "integrity": "sha256-99CiXrhiFFwAUcFsuGHrJkOpuo4VcoLWFOH0ApinPAc="
       }
     ],
     "libraryInitializers": [
