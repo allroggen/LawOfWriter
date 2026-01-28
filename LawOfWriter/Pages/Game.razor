@@ -1,26 +1,32 @@
 @page "/game"
+@using LawOfWriter.DTO
 @using LawOfWriter.Services
-@using LawOfWriter.Models
 @using LawOfWriter.Pages.Component
 @inject ApiService apiService
-@inject AuthService authService
-@inject IJSRuntime js
 @attribute [Authorize]
 
 
 @if (!_showDetails)
 {
-    <MudDataGrid T="RootGame" Items="@_gameDays" @bind-SelectedItem="_selectedGameDay" SelectOnRowClick="true">
-        <Columns>
-            <PropertyColumn Property="p=>p.gameDay.id"/>
-            <PropertyColumn Property="p=>p.gameDay.gameDay1"/>
-            <TemplateColumn>
-                <CellTemplate>
-                    <MudButton OnClick="@(() => ShowDetails(context.Item))" Variant="Variant.Text">Details</MudButton>
-                </CellTemplate>
-            </TemplateColumn>
-        </Columns>
-    </MudDataGrid>
+    @if (IsLoading)
+    {
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary"/>
+    }
+    else
+    {
+        <MudDataGrid T="GameApiDto" Items="@_gameDays" @bind-SelectedItem="_selectedGameDay" SelectOnRowClick="true">
+            <Columns>
+                <PropertyColumn Property="p=>p.GameDayDto.Id"/>
+                <PropertyColumn Property="p=>p.GameDayDto.GameDay1"/>
+                <TemplateColumn>
+                    <CellTemplate>
+                        <MudButton OnClick="@(() => ShowDetails(context.Item))" Variant="Variant.Text">Details
+                        </MudButton>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    }
 }
 else if (_selectedGameDay is not null)
 {
@@ -31,11 +37,12 @@ else if (_selectedGameDay is not null)
 
 @code {
 
-    private List<RootGame>? _gameDays = new();
-    private RootGame? _selectedGameDay;
+    private List<GameApiDto>? _gameDays = new();
+    private GameApiDto? _selectedGameDay;
     private bool _showDetails = false;
+    public bool IsLoading { get; set; } = true;
 
-    private void ShowDetails(RootGame gameDay)
+    private void ShowDetails(GameApiDto gameDay)
     {
         _selectedGameDay = gameDay;
         _showDetails = true;
@@ -57,7 +64,9 @@ else if (_selectedGameDay is not null)
     {
         try
         {
-            _gameDays = await apiService.GetAsync<List<RootGame>>("data/game");
+            IsLoading = true;
+            _gameDays = await apiService.GetAsync<List<GameApiDto>>("data/game");
+            IsLoading = false;
             await InvokeAsync(StateHasChanged);
         }
         catch (Exception e)

@@ -1,18 +1,19 @@
+@using LawOfWriter.DTO
 @using LawOfWriter.Models
 <h3>GameDetails</h3>
-<h3>@gameDay.gameDay.id</h3>
+<h3>@gameDay.GameDayDto.Id</h3>
 
-<MudDataGrid T="GameAction" Items="@gameDay.gameAction">
+<MudDataGrid T="GameDayActionDto" Items="@gameDay.GameDayActionDtos">
     <Columns>
-        <PropertyColumn Property="x=>x.userId"/>
-        <PropertyColumn Property="x=>x.band"/>
-        <PropertyColumn Property="x=>x.pumpe"/>
-        <PropertyColumn Property="x=>x.kranz"/>
+        <PropertyColumn Property="x=>x.User.UserName"/>
+        <PropertyColumn Property="x=>x.Band"/>
+        <PropertyColumn Property="x=>x.Pumpe"/>
+        <PropertyColumn Property="x=>x.Kranz"/>
     </Columns>
 </MudDataGrid>
 
 
 
 @code {
-    [Parameter] public required RootGame gameDay { get; set; }
+    [Parameter] public required GameApiDto gameDay { get; set; }
 }
