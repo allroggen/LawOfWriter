@@ -15,14 +15,6 @@
         <PropertyColumn Property="x=>x.Neuner" Title="Neuner" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
         <PropertyColumn Property="x=>x.Spiele" Title="Spiele" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
         <PropertyColumn Property="x=>x.Gesamt" Title="Gesamt" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
-        <TemplateColumn Title="Aktionen" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile">
-            <CellTemplate>
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" 
-                               Color="Color.Primary" 
-                               Size="Size.Small"
-                               OnClick="@(() => OpenEditDialog(context.Item))"/>
-            </CellTemplate>
-        </TemplateColumn>
     </Columns>
 </MudDataGrid>
 
@@ -52,7 +44,7 @@
             FullWidth = true 
         };
         
-        var dialog = await DialogService.ShowAsync<EditGameActionDialog>("Datensatz bearbeiten", parameters, options);
+        var dialog = await DialogService.ShowAsync<EditGameActionDialog>($"{item.User!.FullName}", parameters, options);
         var result = await dialog.Result;
         
         if (result is not { Canceled: true })

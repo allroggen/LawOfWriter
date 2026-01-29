@@ -1,31 +1,131 @@
 ﻿@inherits LayoutComponentBase
 @attribute [Authorize]
+@using System.Security.Claims
+@inject Services.ThemeService ThemeService
 
-<MudThemeProvider DefaultScrollbar="true" IsDarkMode="@DarkMode" Theme="_theme"/>
+<MudThemeProvider DefaultScrollbar="true" IsDarkMode="@DarkMode" Theme="_theme" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
 <MudLayout>
-  <MudAppBar>
-    <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
-    My Application
-    <MudToggleIconButton Icon="@Icons.Material.Filled.DarkMode" ToggledIcon="@Icons.Material.Filled.LightMode" T="bool" @bind-Toggled="@DarkMode" ToggledColor="@Color.Success" Color="Color.Primary"/>
+  <MudAppBar Elevation="1" Dense="true">
+    <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                   Color="Color.Inherit"
+                   Edge="Edge.Start"
+                   AriaLabel="Menü öffnen/schließen"
+                   OnClick="@DrawerToggle" />
+
+    <MudText Typo="Typo.h6" Class="ml-2">Law Of Writer</MudText>
+
+    <MudSpacer />
+
+    <MudTooltip Text="@(DarkMode ? "Light Mode" : "Dark Mode")">
+      <MudToggleIconButton Icon="@Icons.Material.Filled.DarkMode"
+                           ToggledIcon="@Icons.Material.Filled.LightMode"
+                           T="bool"
+                           Toggled="@DarkMode"
+                           ToggledChanged="@OnDarkModeChanged"
+                           AriaLabel="Dark Mode umschalten"
+                           Color="Color.Inherit" />
+    </MudTooltip>
+
+    <AuthorizeView>
+      <Authorized>
+        <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
+          <ActivatorContent>
+            <MudTooltip Text="@GetUserLabel(context.User)">
+              <MudIconButton Color="Color.Inherit" AriaLabel="Account-Menü">
+                <MudAvatar Size="Size.Medium" Color="Color.Primary" Variant="Variant.Filled">
+                  @GetUserInitials(context.User)
+                </MudAvatar>
+              </MudIconButton>
+            </MudTooltip>
+          </ActivatorContent>
+          <ChildContent>
+            <MudText Class="px-4 pt-3" Typo="Typo.subtitle2">@GetUserLabel(context.User)</MudText>
+            <MudDivider Class="my-2" />
+            <MudMenuItem Href="/game" Icon="@Icons.Material.Filled.SportsEsports">Spiele</MudMenuItem>
+            <MudMenuItem Href="/logout" Icon="@Icons.Material.Filled.Logout">Abmelden</MudMenuItem>
+          </ChildContent>
+        </MudMenu>
+      </Authorized>
+    </AuthorizeView>
   </MudAppBar>
-  <MudDrawer @bind-Open="@_drawerOpen">
-    <NavMenu/>
+
+  <MudDrawer @bind-Open="@_drawerOpen"
+             Variant="DrawerVariant.Temporary"
+             Breakpoint="Breakpoint.Md"
+             Elevation="2">
+    <NavMenu />
   </MudDrawer>
+
   <MudMainContent>
-    @Body
+    <MudContainer MaxWidth="MaxWidth.False" Class="pa-3 pa-sm-4 pa-md-6">
+      @Body
+    </MudContainer>
   </MudMainContent>
 </MudLayout>
 
 @code {
   bool _drawerOpen = false;
   private MudTheme _theme = new();
-  public bool DarkMode { get; set; } = true;
+  public bool DarkMode { get; set; }
+
+  protected override async Task OnInitializedAsync()
+  {
+    DarkMode = await ThemeService.GetDarkModeAsync(defaultValue: false);
+  }
+
+  private async Task OnDarkModeChanged(bool value)
+  {
+    DarkMode = value;
+    await ThemeService.SetDarkModeAsync(value);
+  }
+
   void DrawerToggle()
   {
     _drawerOpen = !_drawerOpen;
+  }
+
+  private static string GetUserLabel(ClaimsPrincipal user)
+  {
+    // Prefer common claim types; fall back to identity name.
+    return user.FindFirst(ClaimTypes.Email)?.Value
+           ?? user.FindFirst("vorname")?.Value
+           ?? user.Identity?.Name
+           ?? "Angemeldet";
+  }
+
+  private static string GetUserInitials(ClaimsPrincipal user)
+  {
+    var label = GetUserLabel(user);
+    if (string.IsNullOrWhiteSpace(label))
+      return "?";
+
+    // If label looks like an email, use the part before '@'.
+    var at = label.IndexOf('@');
+    if (at > 0)
+      label = label[..at];
+
+    // Split on common separators.
+    var parts = label
+      .Replace('.', ' ')
+      .Replace('_', ' ')
+      .Replace('-', ' ')
+      .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    if (parts.Length == 0)
+      return "?";
+
+    if (parts.Length == 1)
+    {
+      var p = parts[0];
+      return (p.Length >= 2 ? p[..2] : p[..1]).ToUpperInvariant();
+    }
+
+    var first = parts[0];
+    var last = parts[^1];
+    return $"{char.ToUpperInvariant(first[0])}{char.ToUpperInvariant(last[0])}";
   }
 }
