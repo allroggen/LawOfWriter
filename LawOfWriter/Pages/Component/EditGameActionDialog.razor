@@ -66,14 +66,14 @@
 
 @code {
     [CascadingParameter]
-    private MudDialog MudDialog { get; set; } = default!;
+    private IMudDialogInstance  MudDialog { get; set; } = null!;
 
     [Parameter]
     public required GameDayActionDto GameAction { get; set; }
 
     private void Cancel()
-        => MudDialog.CloseAsync();
+        => MudDialog.Cancel();
 
     private void Save()
-        => MudDialog.CloseAsync(DialogResult.Ok(GameAction));
+        => MudDialog.Close(DialogResult.Ok(GameAction));
 }
