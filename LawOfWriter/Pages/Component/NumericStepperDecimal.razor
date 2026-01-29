@@ -1,0 +1,28 @@
+<MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+    <MudIconButton Icon="@Icons.Material.Filled.Remove"
+                   OnClick="Decrease" />
+
+    <MudNumericField T="decimal?"
+                     Value="Value"
+                     ValueChanged="ValueChanged"
+                     Step="@Step"
+                     Format="@Format"
+                     HideSpinButtons="true"
+                     Style="max-width:120px" />
+
+    <MudIconButton Icon="@Icons.Material.Filled.Add"
+                   OnClick="Increase" />
+</MudStack>
+
+@code {
+    [Parameter] public decimal? Value { get; set; }
+    [Parameter] public decimal Step { get; set; } = 1;
+    [Parameter] public string Format { get; set; } = "F2";
+    [Parameter] public EventCallback<decimal?> ValueChanged { get; set; }
+
+    private Task Increase()
+        => ValueChanged.InvokeAsync((Value ?? 0) + Step);
+
+    private Task Decrease()
+        => ValueChanged.InvokeAsync(Math.Max(0, (Value ?? 0) - Step));
+}

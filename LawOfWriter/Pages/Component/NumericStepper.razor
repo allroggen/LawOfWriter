@@ -1,0 +1,27 @@
+<MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+    <MudIconButton Icon="@Icons.Material.Filled.Remove"
+                   Color="Color.Primary"
+                   OnClick="Decrease" />
+
+    <MudNumericField T="int?"
+                     Value="Value"
+                     ValueChanged="ValueChanged"
+                     Min="0"
+                     HideSpinButtons="true"
+                     Style="max-width:120px" />
+
+    <MudIconButton Icon="@Icons.Material.Filled.Add"
+                   Color="Color.Primary"
+                   OnClick="Increase" />
+</MudStack>
+
+@code {
+    [Parameter] public int? Value { get; set; }
+    [Parameter] public EventCallback<int?> ValueChanged { get; set; }
+
+    private Task Increase()
+        => ValueChanged.InvokeAsync((Value ?? 0) + 1);
+
+    private Task Decrease()
+        => ValueChanged.InvokeAsync(Math.Max(0, (Value ?? 0) - 1));
+}

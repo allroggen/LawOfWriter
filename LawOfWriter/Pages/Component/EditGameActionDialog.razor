@@ -1,177 +1,101 @@
 @using LawOfWriter.DTO
 
-<MudDialog ClassActions="dialog-actions-responsive">
-    <TitleContent>
-        <MudText Typo="Typo.h6" Class="d-flex align-center gap-2">
-            <MudIcon Icon="@Icons.Material.Filled.Edit" />
-            <span>Spielaktion bearbeiten</span>
-        </MudText>
-    </TitleContent>
-    
+<MudDialog MaxWidth="MaxWidth.Small" FullWidth="true">
     <DialogContent>
-        <MudStack Spacing="3">
-            <!-- Benutzer Info Card -->
-            <MudPaper Elevation="0" Class="pa-3 rounded-lg" Style="background: var(--mud-palette-primary-lighten);">
-                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                    <MudAvatar Color="Color.Primary" Size="Size.Medium">
-                        @(GameAction.User?.UserName?.Substring(0, 1).ToUpper() ?? "?")
-                    </MudAvatar>
-                    <MudStack Spacing="0">
-                        <MudText Typo="Typo.caption" Color="Color.Dark">Benutzer</MudText>
-                        <MudText Typo="Typo.body1"><strong>@(GameAction.User?.UserName ?? "Unbekannt")</strong></MudText>
-                    </MudStack>
-                </MudStack>
-            </MudPaper>
 
-            <!-- Mobile: Nur Name und wichtige Felder -->
-            <MudHidden Breakpoint="Breakpoint.SmAndUp" Invert="false">
-                <MudStack Spacing="2">
-                    <MudNumericField @bind-Value="GameAction.Gesamt" 
-                                     Label="Gesamt" 
-                                     Variant="Variant.Outlined"
-                                     Min="0"
-                                     Step="0.01M"
-                                     Format="F2"
-                                     Adornment="Adornment.Start"
-                                     AdornmentIcon="@Icons.Material.Filled.Euro"
-                                     FullWidth="true"/>
-                    
-                    <MudStack Row="true" Justify="Justify.SpaceBetween">
-                        <MudSwitch @bind-Value="GameAction.IsPresent" 
-                                   Label="Anwesend" 
-                                   Color="Color.Success"
-                                   Size="Size.Small"/>
-                        <MudSwitch @bind-Value="GameAction.IsLocked" 
-                                   Label="Gesperrt" 
-                                   Color="Color.Error"
-                                   Size="Size.Small"/>
-                    </MudStack>
-                </MudStack>
-            </MudHidden>
+        <MudGrid Spacing="2">
 
-            <!-- Tablet & Desktop: Vollständige Ansicht -->
-            <MudHidden Breakpoint="Breakpoint.Xs" Invert="false">
-                <MudDivider />
-                
-                <!-- Spielstatistiken -->
-                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Spielstatistiken</MudText>
-                <MudGrid Spacing="2">
-                    <MudItem xs="12" sm="6" md="3">
-                        <MudNumericField @bind-Value="GameAction.Band" 
-                                         Label="Band" 
-                                         Variant="Variant.Outlined"
-                                         Min="0"
-                                         Adornment="Adornment.Start"
-                                         AdornmentIcon="@Icons.Material.Filled.MusicNote"
-                                         FullWidth="true"/>
-                    </MudItem>
-                    
-                    <MudItem xs="12" sm="6" md="3">
-                        <MudNumericField @bind-Value="GameAction.Pumpe" 
-                                         Label="Pumpe" 
-                                         Variant="Variant.Outlined"
-                                         Min="0"
-                                         Adornment="Adornment.Start"
-                                         AdornmentIcon="@Icons.Material.Filled.Water"
-                                         FullWidth="true"/>
-                    </MudItem>
-                    
-                    <MudItem xs="12" sm="6" md="3">
-                        <MudNumericField @bind-Value="GameAction.Kranz" 
-                                         Label="Kranz" 
-                                         Variant="Variant.Outlined"
-                                         Min="0"
-                                         Adornment="Adornment.Start"
-                                         AdornmentIcon="@Icons.Material.Filled.EmojiEvents"
-                                         FullWidth="true"/>
-                    </MudItem>
-                    
-                    <MudItem xs="12" sm="6" md="3">
-                        <MudNumericField @bind-Value="GameAction.Neuner" 
-                                         Label="Neuner" 
-                                         Variant="Variant.Outlined"
-                                         Min="0"
-                                         Adornment="Adornment.Start"
-                                         AdornmentIcon="@Icons.Material.Filled.Filter9Plus"
-                                         FullWidth="true"/>
-                    </MudItem>
-                </MudGrid>
+            <!-- Benutzer -->
+            <MudItem xs="12">
+                <MudTextField Label="Benutzer"
+                              Value="@GameAction.User?.UserName"
+                              ReadOnly="true"
+                              Variant="Variant.Filled"
+                              FullWidth="true" />
+            </MudItem>
 
-                <!-- Zusammenfassung -->
-                <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mt-2">Zusammenfassung</MudText>
-                <MudGrid Spacing="2">
-                    <MudItem xs="12" sm="6">
-                        <MudNumericField @bind-Value="GameAction.Spiele" 
-                                         Label="Spiele" 
-                                         Variant="Variant.Outlined"
-                                         Min="0"
-                                         Step="0.5M"
-                                         Adornment="Adornment.Start"
-                                         AdornmentIcon="@Icons.Material.Filled.SportsEsports"
-                                         FullWidth="true"/>
-                    </MudItem>
-                    
-                    <MudItem xs="12" sm="6">
-                        <MudNumericField @bind-Value="GameAction.Gesamt" 
-                                         Label="Gesamt" 
-                                         Variant="Variant.Outlined"
-                                         Min="0"
-                                         Step="0.01M"
-                                         Format="F2"
-                                         Adornment="Adornment.Start"
-                                         AdornmentIcon="@Icons.Material.Filled.Euro"
-                                         FullWidth="true"/>
-                    </MudItem>
-                </MudGrid>
+            <!-- Zahlenfelder mit Plus / Minus -->
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.subtitle2">Band</MudText>
+                <NumericStepper @bind-Value="GameAction.Band" />
+            </MudItem>
 
-                <MudDivider />
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.subtitle2">Pumpe</MudText>
+                <NumericStepper @bind-Value="GameAction.Pumpe" />
+            </MudItem>
 
-                <!-- Status -->
-                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Status</MudText>
-                <MudStack Row="true" Spacing="4">
-                    <MudSwitch @bind-Value="GameAction.IsPresent" 
-                               Label="Anwesend" 
-                               Color="Color.Success"
-                               Size="Size.Medium"/>
-                    <MudSwitch @bind-Value="GameAction.IsLocked" 
-                               Label="Gesperrt" 
-                               Color="Color.Error"
-                               Size="Size.Medium"/>
-                </MudStack>
-            </MudHidden>
-        </MudStack>
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.subtitle2">Kranz</MudText>
+                <NumericStepper @bind-Value="GameAction.Kranz" />
+            </MudItem>
+
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.subtitle2">Neuner</MudText>
+                <NumericStepper @bind-Value="GameAction.Neuner" />
+            </MudItem>
+
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.subtitle2">Spiele</MudText>
+                <NumericStepperDecimal @bind-Value="GameAction.Spiele"
+                                       Step="0.5M" />
+            </MudItem>
+
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.subtitle2">Gesamt</MudText>
+                <NumericStepperDecimal @bind-Value="GameAction.Gesamt"
+                                       Step="0.01M"
+                                       Format="F2" />
+            </MudItem>
+
+            <!-- Switches -->
+            <MudItem xs="12">
+                <MudSwitch @bind-Value="GameAction.IsPresent"
+                           Label="Anwesend"
+                           Size="Size.Medium"
+                           Color="Color.Primary" />
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudSwitch @bind-Value="GameAction.IsLocked"
+                           Label="Gesperrt"
+                           Size="Size.Medium"
+                           Color="Color.Warning" />
+            </MudItem>
+
+        </MudGrid>
+
     </DialogContent>
-    
+
+    <!-- Actions -->
     <DialogActions>
-        <MudButton OnClick="Cancel" 
-                   Variant="Variant.Text"
-                   StartIcon="@Icons.Material.Filled.Close">
-            Abbrechen
-        </MudButton>
-        <MudButton Color="Color.Primary" 
-                   Variant="Variant.Filled" 
-                   OnClick="Save"
-                   StartIcon="@Icons.Material.Filled.Save">
-            Speichern
-        </MudButton>
+        <div class="d-flex flex-column flex-sm-row gap-2" style="width: 100%;">
+            <MudButton FullWidth="true"
+                       Variant="Variant.Outlined"
+                       OnClick="Cancel">
+                Abbrechen
+            </MudButton>
+
+            <MudButton FullWidth="true"
+                       Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       OnClick="Save">
+                Speichern
+            </MudButton>
+        </div>
     </DialogActions>
 </MudDialog>
 
 @code {
-    [CascadingParameter] 
+    [CascadingParameter]
     private MudDialog MudDialog { get; set; } = default!;
-    
-    [Parameter] 
+
+    [Parameter]
     public required GameDayActionDto GameAction { get; set; }
-    
+
     private void Cancel()
-    {
-        MudDialog.CloseAsync();
-    }
-    
+        => MudDialog.CloseAsync();
+
     private void Save()
-    {
-        // Hier können Sie zusätzliche Validierung oder API-Aufrufe hinzufügen
-        MudDialog.CloseAsync(DialogResult.Ok(GameAction));
-    }
+        => MudDialog.CloseAsync(DialogResult.Ok(GameAction));
 }
