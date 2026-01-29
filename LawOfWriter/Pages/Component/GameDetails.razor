@@ -1,19 +1,54 @@
 @using LawOfWriter.DTO
-@using LawOfWriter.Models
+@using LawOfWriter.Pages.Component
+@inject IDialogService DialogService
+
 <h3>GameDetails</h3>
 <h3>@gameDay.GameDayDto.Id</h3>
 
 <MudDataGrid T="GameDayActionDto" Items="@gameDay.GameDayActionDtos">
     <Columns>
-        <PropertyColumn Property="x=>x.User.UserName"/>
-        <PropertyColumn Property="x=>x.Band"/>
-        <PropertyColumn Property="x=>x.Pumpe"/>
-        <PropertyColumn Property="x=>x.Kranz"/>
+        <PropertyColumn Property="x=>x.User.UserName" Title="Benutzer"/>
+        <PropertyColumn Property="x=>x.Band" Title="Band"/>
+        <PropertyColumn Property="x=>x.Pumpe" Title="Pumpe"/>
+        <PropertyColumn Property="x=>x.Kranz" Title="Kranz"/>
+        <PropertyColumn Property="x=>x.Neuner" Title="Neuner"/>
+        <PropertyColumn Property="x=>x.Spiele" Title="Spiele"/>
+        <PropertyColumn Property="x=>x.Gesamt" Title="Gesamt"/>
+        <TemplateColumn Title="Aktionen">
+            <CellTemplate>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                               Color="Color.Primary" 
+                               Size="Size.Small"
+                               OnClick="@(() => OpenEditDialog(context.Item))"/>
+            </CellTemplate>
+        </TemplateColumn>
     </Columns>
 </MudDataGrid>
 
-
-
 @code {
     [Parameter] public required GameApiDto gameDay { get; set; }
+    
+    private async Task OpenEditDialog(GameDayActionDto item)
+    {
+        var parameters = new DialogParameters<EditGameActionDialog>
+        {
+            { x => x.GameAction, item }
+        };
+        
+        var options = new DialogOptions 
+        { 
+            CloseButton = true, 
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true 
+        };
+        
+        var dialog = await DialogService.ShowAsync<EditGameActionDialog>("Datensatz bearbeiten", parameters, options);
+        var result = await dialog.Result;
+        
+        if (!result.Canceled)
+        {
+            // Optional: Hier können Sie die Daten aktualisieren oder speichern
+            StateHasChanged();
+        }
+    }
 }

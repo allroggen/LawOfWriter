@@ -1,0 +1,95 @@
+@using LawOfWriter.DTO
+
+<MudDialog>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField Label="Benutzer" 
+                              Value="@GameAction.User?.UserName" 
+                              ReadOnly="true" 
+                              Variant="Variant.Filled"/>
+            </MudItem>
+            
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="GameAction.Band" 
+                                 Label="Band" 
+                                 Variant="Variant.Outlined"
+                                 Min="0"/>
+            </MudItem>
+            
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="GameAction.Pumpe" 
+                                 Label="Pumpe" 
+                                 Variant="Variant.Outlined"
+                                 Min="0"/>
+            </MudItem>
+            
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="GameAction.Kranz" 
+                                 Label="Kranz" 
+                                 Variant="Variant.Outlined"
+                                 Min="0"/>
+            </MudItem>
+            
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="GameAction.Neuner" 
+                                 Label="Neuner" 
+                                 Variant="Variant.Outlined"
+                                 Min="0"/>
+            </MudItem>
+            
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="GameAction.Spiele" 
+                                 Label="Spiele" 
+                                 Variant="Variant.Outlined"
+                                 Min="0"
+                                 Step="0.5M"/>
+            </MudItem>
+            
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="GameAction.Gesamt" 
+                                 Label="Gesamt" 
+                                 Variant="Variant.Outlined"
+                                 Min="0"
+                                 Step="0.01M"
+                                 Format="F2"/>
+            </MudItem>
+            
+            <MudItem xs="12">
+                <MudSwitch @bind-Value="GameAction.IsPresent" 
+                           Label="Anwesend" 
+                           Color="Color.Primary"/>
+            </MudItem>
+            
+            <MudItem xs="12">
+                <MudSwitch @bind-Value="GameAction.IsLocked" 
+                           Label="Gesperrt" 
+                           Color="Color.Warning"/>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    
+    <DialogActions>
+        <MudButton OnClick="Cancel">Abbrechen</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save">Speichern</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] 
+    private MudDialog MudDialog { get; set; } = default!;
+    
+    [Parameter] 
+    public required GameDayActionDto GameAction { get; set; }
+    
+    private void Cancel()
+    {
+        MudDialog.CloseAsync();
+    }
+    
+    private void Save()
+    {
+        // Hier können Sie zusätzliche Validierung oder API-Aufrufe hinzufügen
+        MudDialog.CloseAsync(DialogResult.Ok(GameAction));
+    }
+}
