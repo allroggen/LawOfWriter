@@ -5,35 +5,64 @@
 @inject ApiService apiService
 @attribute [Authorize]
 
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
 
-@if (!_showDetails)
-{
-    @if (IsLoading)
-    {
-        <MudProgressCircular Indeterminate="true" Color="Color.Primary"/>
+    @if (!_showDetails) {
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.h5">Spieltage</MudText>
+
+            @if (IsLoading) {
+                <MudPaper Class="pa-6 d-flex justify-center" Elevation="0">
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
+                </MudPaper>
+            }
+            else if (_gameDays is null || _gameDays.Count == 0) {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                    Keine Daten verfügbar.
+                </MudAlert>
+            }
+            else {
+                <MudGrid Spacing="2">
+                    @foreach (var item in _gameDays) {
+                        <MudItem xs="12" sm="6" md="4" lg="3">
+                            <MudCard Elevation="1" Class="h-100">
+                                <MudCardHeader>
+                                    <CardHeaderContent>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                            @item.GameDayDto.GameDay1.ToString("dd.MM.yyyy")
+                                        </MudText>
+                                    </CardHeaderContent>
+                                </MudCardHeader>
+
+                                <MudCardActions Class="pa-3 pt-0">
+                                    <MudButton FullWidth="true"
+                                               Variant="Variant.Filled"
+                                               Color="Color.Primary"
+                                               OnClick="@(() => ShowDetails(item))">
+                                        Öffnen
+                                    </MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        </MudStack>
     }
-    else
-    {
-        <MudDataGrid T="GameApiDto" Items="@_gameDays" @bind-SelectedItem="_selectedGameDay" SelectOnRowClick="true">
-            <Columns>
-                <PropertyColumn Property="p=>p.GameDayDto.Id"/>
-                <PropertyColumn Property="p=>p.GameDayDto.GameDay1"/>
-                <TemplateColumn>
-                    <CellTemplate>
-                        <MudButton OnClick="@(() => ShowDetails(context.Item))" Variant="Variant.Text">Details
-                        </MudButton>
-                    </CellTemplate>
-                </TemplateColumn>
-            </Columns>
-        </MudDataGrid>
+    else if (_selectedGameDay is not null) {
+        <MudPaper Class="pa-2 mb-3 d-flex align-center" Elevation="0"
+                  Style="position: sticky; top: 0; z-index: 5;">
+            <MudButton OnClick="@BackToList" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">
+                Zurück
+            </MudButton>
+            <MudSpacer/>
+            <MudText Typo="Typo.subtitle2">Details</MudText>
+        </MudPaper>
+
+        <GameDetails GameDay="_selectedGameDay"/>
     }
-}
-else if (_selectedGameDay is not null)
-{
-    <MudButton OnClick="@BackToList" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">Zurück
-    </MudButton>
-    <GameDetails GameDay="_selectedGameDay"/>
-}
+
+</MudContainer>
 
 @code {
 
@@ -42,35 +71,29 @@ else if (_selectedGameDay is not null)
     private bool _showDetails = false;
     public bool IsLoading { get; set; } = true;
 
-    private void ShowDetails(GameApiDto gameDay)
-    {
+    private void ShowDetails(GameApiDto gameDay) {
         _selectedGameDay = gameDay;
         _showDetails = true;
     }
 
-    private void BackToList()
-    {
+    private void BackToList() {
         _showDetails = false;
         _selectedGameDay = null;
     }
 
-    protected override async Task OnInitializedAsync()
-    {
+    protected override async Task OnInitializedAsync() {
         await LoadGameData();
     }
 
 
-    private async Task LoadGameData()
-    {
-        try
-        {
+    private async Task LoadGameData() {
+        try {
             IsLoading = true;
             _gameDays = await apiService.GetAsync<List<GameApiDto>>("data/game");
             IsLoading = false;
             await InvokeAsync(StateHasChanged);
         }
-        catch (Exception e)
-        {
+        catch (Exception e) {
             Console.WriteLine(e);
             throw;
         }

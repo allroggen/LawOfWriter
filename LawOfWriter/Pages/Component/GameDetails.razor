@@ -1,8 +1,7 @@
 @using LawOfWriter.DTO
 @inject IDialogService DialogService
 
-<h3>GameDetails</h3>
-<h3>@GameDay.GameDayDto.Id</h3>
+<h3>@GameDay.GameDayDto.GameDay1.ToString("dd.MM.yyyy")</h3>
 
 <MudDataGrid T="GameDayActionDto" Items="@GameDay.GameDayActionDtos"
             RowClick="@OnRowClick"
