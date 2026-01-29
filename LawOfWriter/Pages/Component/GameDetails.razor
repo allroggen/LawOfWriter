@@ -4,20 +4,18 @@
 <h3>GameDetails</h3>
 <h3>@GameDay.GameDayDto.Id</h3>
 
-<MudDataGrid T="GameDayActionDto" Items="@GameDay.GameDayActionDtos">
+<MudDataGrid T="GameDayActionDto" Items="@GameDay.GameDayActionDtos"
+            RowClick="@OnRowClick"
+            RowHover="true">
     <Columns>
-        <TemplateColumn>
-            <CellTemplate>
-                @context.Item?.User?.Vorname @context.Item?.User?.Name
-            </CellTemplate>
-        </TemplateColumn>
-        <PropertyColumn Property="x=>x.Band" Title="Band"/>
-        <PropertyColumn Property="x=>x.Pumpe" Title="Pumpe"/>
-        <PropertyColumn Property="x=>x.Kranz" Title="Kranz"/>
-        <PropertyColumn Property="x=>x.Neuner" Title="Neuner"/>
-        <PropertyColumn Property="x=>x.Spiele" Title="Spiele"/>
-        <PropertyColumn Property="x=>x.Gesamt" Title="Gesamt"/>
-        <TemplateColumn Title="Aktionen">
+        <PropertyColumn Property="x=>x.User!.FullName" Title="Name" />
+        <PropertyColumn Property="x=>x.Band" Title="Band" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
+        <PropertyColumn Property="x=>x.Pumpe" Title="Pumpe" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
+        <PropertyColumn Property="x=>x.Kranz" Title="Kranz" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
+        <PropertyColumn Property="x=>x.Neuner" Title="Neuner" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
+        <PropertyColumn Property="x=>x.Spiele" Title="Spiele" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
+        <PropertyColumn Property="x=>x.Gesamt" Title="Gesamt" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
+        <TemplateColumn Title="Aktionen" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile">
             <CellTemplate>
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" 
                                Color="Color.Primary" 
@@ -27,6 +25,15 @@
         </TemplateColumn>
     </Columns>
 </MudDataGrid>
+
+<style>
+    /* Smartphone: nur FullName anzeigen */
+    @@media (max-width: 600px) {
+        .hide-on-mobile {
+            display: none !important;
+        }
+    }
+</style>
 
 @code {
     [Parameter] public required GameApiDto GameDay { get; set; }
@@ -54,4 +61,7 @@
             StateHasChanged();
         }
     }
+
+    private Task OnRowClick(DataGridRowClickEventArgs<GameDayActionDto> args)
+        => OpenEditDialog(args.Item);
 }
