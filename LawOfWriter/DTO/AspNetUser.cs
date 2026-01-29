@@ -51,4 +51,14 @@ public class AspNetUser
     public string? Nickname { get; set; }
 
     public bool IsGuest { get; set; }
+    
+    public string? FullName
+    {
+        get
+        {
+            var full = string.Join(" ",
+                new[] { Vorname, Name }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+            return string.IsNullOrEmpty(full) ? null : full;
+        }
+    }
 }

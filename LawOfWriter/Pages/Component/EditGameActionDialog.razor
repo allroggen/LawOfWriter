@@ -8,7 +8,7 @@
             <!-- Benutzer -->
             <MudItem xs="12">
                 <MudTextField Label="Benutzer"
-                              Value="@GameAction.User?.UserName"
+                              Value="@GameAction.User?.FullName"
                               ReadOnly="true"
                               Variant="Variant.Filled"
                               FullWidth="true" />
@@ -39,28 +39,6 @@
                 <MudText Typo="Typo.subtitle2">Spiele</MudText>
                 <NumericStepperDecimal @bind-Value="GameAction.Spiele"
                                        Step="0.5M" />
-            </MudItem>
-
-            <MudItem xs="12" sm="6">
-                <MudText Typo="Typo.subtitle2">Gesamt</MudText>
-                <NumericStepperDecimal @bind-Value="GameAction.Gesamt"
-                                       Step="0.01M"
-                                       Format="F2" />
-            </MudItem>
-
-            <!-- Switches -->
-            <MudItem xs="12">
-                <MudSwitch @bind-Value="GameAction.IsPresent"
-                           Label="Anwesend"
-                           Size="Size.Medium"
-                           Color="Color.Primary" />
-            </MudItem>
-
-            <MudItem xs="12">
-                <MudSwitch @bind-Value="GameAction.IsLocked"
-                           Label="Gesperrt"
-                           Size="Size.Medium"
-                           Color="Color.Warning" />
             </MudItem>
 
         </MudGrid>

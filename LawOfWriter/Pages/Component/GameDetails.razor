@@ -1,13 +1,16 @@
 @using LawOfWriter.DTO
-@using LawOfWriter.Pages.Component
 @inject IDialogService DialogService
 
 <h3>GameDetails</h3>
-<h3>@gameDay.GameDayDto.Id</h3>
+<h3>@GameDay.GameDayDto.Id</h3>
 
-<MudDataGrid T="GameDayActionDto" Items="@gameDay.GameDayActionDtos">
+<MudDataGrid T="GameDayActionDto" Items="@GameDay.GameDayActionDtos">
     <Columns>
-        <PropertyColumn Property="x=>x.User.UserName" Title="Benutzer"/>
+        <TemplateColumn>
+            <CellTemplate>
+                @context.Item?.User?.Vorname @context.Item?.User?.Name
+            </CellTemplate>
+        </TemplateColumn>
         <PropertyColumn Property="x=>x.Band" Title="Band"/>
         <PropertyColumn Property="x=>x.Pumpe" Title="Pumpe"/>
         <PropertyColumn Property="x=>x.Kranz" Title="Kranz"/>
@@ -26,7 +29,7 @@
 </MudDataGrid>
 
 @code {
-    [Parameter] public required GameApiDto gameDay { get; set; }
+    [Parameter] public required GameApiDto GameDay { get; set; }
     
     private async Task OpenEditDialog(GameDayActionDto item)
     {
@@ -45,7 +48,7 @@
         var dialog = await DialogService.ShowAsync<EditGameActionDialog>("Datensatz bearbeiten", parameters, options);
         var result = await dialog.Result;
         
-        if (!result.Canceled)
+        if (result is not { Canceled: true })
         {
             // Optional: Hier können Sie die Daten aktualisieren oder speichern
             StateHasChanged();
