@@ -49,7 +49,32 @@
 
 <MudContainer MaxWidth="MaxWidth.Small" Class="py-16">
     <MudPaper Elevation="3" Class="pa-6">
-        <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-6">Verlosung</MudText>
+        <!-- Button -->
+        <MudButton 
+            Variant="Variant.Filled" 
+            Color="Color.Primary" 
+            Size="Size.Large"
+            FullWidth="true"
+            OnClick="DrawWinners"
+            Disabled="_isDrawing || _names.Values.Count(x => !x) < 2">
+            @if (_countdown > 0)
+            {
+                <MudText Typo="Typo.h4">@_countdown</MudText>
+            }
+            else if (_isDrawing)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Würfel werden geworfen...</span>
+            }
+            else if (_names.Values.Count(x => !x) < 2)
+            {
+                <span>Nicht genug Kandidaten</span>
+            }
+            else
+            {
+                <span>Würfel werfen</span>
+            }
+        </MudButton>
 
         <!-- Würfel Anzeige -->
         <div style="display: flex; justify-content: center; gap: 40px; margin-bottom: 40px;">
@@ -101,28 +126,7 @@
             </div>
         </MudPaper>
 
-        <!-- Button -->
-        <MudButton 
-            Variant="Variant.Filled" 
-            Color="Color.Primary" 
-            Size="Size.Large"
-            FullWidth="true"
-            OnClick="DrawWinners"
-            Disabled="_isDrawing || _names.Values.Count(x => !x) < 2">
-            @if (_isDrawing)
-            {
-                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                <span>Würfel werden geworfen...</span>
-            }
-            else if (_names.Values.Count(x => !x) < 2)
-            {
-                <span>Nicht genug Kandidaten</span>
-            }
-            else
-            {
-                <span>Würfel werfen</span>
-            }
-        </MudButton>
+
 
         <!-- Reset Button -->
         @if (_firstWinner != null || _secondWinner != null)
@@ -157,6 +161,7 @@
     private string? _secondWinner;
     private bool _isDrawing = false;
     private int _drawingStep = 0;
+    private int _countdown = 0;
 
     private Random _random = new();
 
@@ -166,6 +171,16 @@
 
         _isDrawing = true;
         _drawingStep = 0;
+
+        // Countdown von 10 bis 1
+        for (int i = 10; i > 0; i--)
+        {
+            _countdown = i;
+            StateHasChanged();
+            await Task.Delay(1000);
+        }
+
+        _countdown = 0;
 
         // Ersten Namen ziehen
         await DrawName(1);
@@ -234,6 +249,7 @@
         _firstWinner = null;
         _secondWinner = null;
         _drawingStep = 0;
+        _countdown = 0;
         StateHasChanged();
     }
 }
