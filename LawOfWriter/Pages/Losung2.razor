@@ -1,0 +1,239 @@
+@page "/losung"
+@using System.Linq
+@attribute [Authorize]
+<style>
+    .dice {
+        width: 150px;
+        height: 150px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: bold;
+        color: white;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+        margin: 0 auto;
+        text-align: center;
+        padding: 10px;
+        word-wrap: break-word;
+    }
+
+    .dice.dice-1 {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .dice.dice-2 {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .dice.rolling {
+        animation: roll 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+</style>
+
+<style>
+    @@keyframes roll {
+        0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+        25% { transform: rotateX(360deg) rotateY(180deg) rotateZ(90deg); }
+        50% { transform: rotateX(720deg) rotateY(360deg) rotateZ(180deg); }
+        75% { transform: rotateX(1080deg) rotateY(540deg) rotateZ(270deg); }
+        100% { transform: rotateX(1440deg) rotateY(720deg) rotateZ(360deg); }
+    }
+</style>
+
+<style>
+</style>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="py-16">
+    <MudPaper Elevation="3" Class="pa-6">
+        <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-6">Verlosung</MudText>
+
+        <!-- Würfel Anzeige -->
+        <div style="display: flex; justify-content: center; gap: 40px; margin-bottom: 40px;">
+            <div>
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary" Align="Align.Center" Class="mb-3">Name 1</MudText>
+                <div class="dice dice-1 @(_isDrawing && _drawingStep < 2 ? "rolling" : "")">
+                    @if (_firstWinner != null)
+                    {
+                        <span>@_firstWinner</span>
+                    }
+                </div>
+            </div>
+            <div>
+                <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Align="Align.Center" Class="mb-3">Name 2</MudText>
+                <div class="dice dice-2 @(_isDrawing && _drawingStep < 3 ? "rolling" : "")">
+                    @if (_secondWinner != null)
+                    {
+                        <span>@_secondWinner</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Gewinner Namen -->
+        @if (_firstWinner != null || _secondWinner != null)
+        {
+            <MudPaper Class="pa-4 mb-6" Elevation="1" style="background-color: rgba(102, 126, 234, 0.1);">
+                <MudText Typo="Typo.subtitle1" Align="Align.Center">
+                    @if (_firstWinner != null && _secondWinner != null)
+                    {
+                        <text>🎉 <strong>@_firstWinner</strong> und <strong>@_secondWinner</strong> 🎉</text>
+                    }
+                    else if (_firstWinner != null)
+                    {
+                        <text>🎉 <strong>@_firstWinner</strong>🎉</text>
+                    }
+                </MudText>
+            </MudPaper>
+        }
+
+        <!-- Verbleibende Namen -->
+        <MudPaper Class="pa-4 mb-6" Elevation="1">
+            <MudText Typo="Typo.subtitle2" Class="mb-3">Verbleibende Kandidaten:</MudText>
+            <div class="d-flex flex-wrap" style="gap: 8px;">
+                @foreach (var name in _names.Where(x => !x.Value))
+                {
+                    <MudChip T="string" Color="Color.Default">@name.Key</MudChip>
+                }
+            </div>
+        </MudPaper>
+
+        <!-- Button -->
+        <MudButton 
+            Variant="Variant.Filled" 
+            Color="Color.Primary" 
+            Size="Size.Large"
+            FullWidth="true"
+            OnClick="DrawWinners"
+            Disabled="_isDrawing || _names.Values.Count(x => !x) < 2">
+            @if (_isDrawing)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Würfel werden geworfen...</span>
+            }
+            else if (_names.Values.Count(x => !x) < 2)
+            {
+                <span>Nicht genug Kandidaten</span>
+            }
+            else
+            {
+                <span>Würfel werfen</span>
+            }
+        </MudButton>
+
+        <!-- Reset Button -->
+        @if (_firstWinner != null || _secondWinner != null)
+        {
+            <MudButton 
+                Variant="Variant.Outlined" 
+                Color="Color.Default"
+                Size="Size.Large"
+                FullWidth="true"
+                Class="mt-3"
+                OnClick="Reset">
+                Zurücksetzen
+            </MudButton>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private Dictionary<string, bool> _names = new() {
+        { "Hafi", false },
+        { "Alex", false },
+        { "Toffe", false },
+        { "Chris", false },
+        { "Fiete", false },
+        { "Lache", false },
+        { "Lira", false },
+        { "Phillipp", false },
+        { "Timo", false },
+    };
+
+    private string? _firstWinner;
+    private string? _secondWinner;
+    private bool _isDrawing = false;
+    private int _drawingStep = 0;
+
+    private Random _random = new();
+
+    private async Task DrawWinners()
+    {
+        if (_isDrawing) return;
+
+        _isDrawing = true;
+        _drawingStep = 0;
+
+        // Ersten Namen ziehen
+        await DrawName(1);
+
+        // Pause von 2 Sekunden zwischen den Ziehungen
+        await Task.Delay(2000);
+
+        // Zweiten Namen ziehen
+        await DrawName(2);
+
+        _isDrawing = false;
+    }
+
+    private async Task DrawName(int position)
+    {
+        _drawingStep = position;
+        var availableNames = _names.Where(x => !x.Value).Select(x => x.Key).ToList();
+
+        if (availableNames.Count == 0) return;
+
+        // Würfel-Wurf Animation - 1.5 Sekunden lang
+        int animationSteps = 14;
+        int delayPerStep = 100;
+        
+        // Während der Animation verschiedene Namen anzeigen
+        for (int i = 0; i < animationSteps; i++)
+        {
+            var randomName = availableNames[_random.Next(availableNames.Count)];
+            
+            if (position == 1)
+            {
+                _firstWinner = randomName;
+            }
+            else
+            {
+                _secondWinner = randomName;
+            }
+
+            StateHasChanged();
+            await Task.Delay(delayPerStep);
+        }
+
+        // Am Ende der Animation den finalen Namen wählen und anzeigen
+        var finalWinner = availableNames[_random.Next(availableNames.Count)];
+
+        if (position == 1)
+        {
+            _firstWinner = finalWinner;
+        }
+        else
+        {
+            _secondWinner = finalWinner;
+        }
+
+        // Namen als gezogen markieren
+        _names[finalWinner] = true;
+        StateHasChanged();
+    }
+
+    private void Reset()
+    {
+        foreach (var key in _names.Keys.ToList())
+        {
+            _names[key] = false;
+        }
+        _firstWinner = null;
+        _secondWinner = null;
+        _drawingStep = 0;
+        StateHasChanged();
+    }
+}
