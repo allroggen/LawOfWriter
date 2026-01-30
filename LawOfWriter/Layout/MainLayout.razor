@@ -10,11 +10,11 @@
 
 <MudLayout>
   <MudAppBar Elevation="1" Dense="true">
-    <MudIconButton Icon="@Icons.Material.Filled.Menu"
-                   Color="Color.Inherit"
-                   Edge="Edge.Start"
-                   AriaLabel="Menü öffnen/schließen"
-                   OnClick="@DrawerToggle" />
+    @* <MudIconButton Icon="@Icons.Material.Filled.Menu" *@
+    @*                Color="Color.Inherit" *@
+    @*                Edge="Edge.Start" *@
+    @*                AriaLabel="Menü öffnen/schließen" *@
+    @*                OnClick="@DrawerToggle" /> *@
 
     <MudText Typo="Typo.h6" Class="ml-2">Law Of Writer</MudText>
 
@@ -53,12 +53,12 @@
     </AuthorizeView>
   </MudAppBar>
 
-  <MudDrawer @bind-Open="@_drawerOpen"
-             Variant="DrawerVariant.Temporary"
-             Breakpoint="Breakpoint.Md"
-             Elevation="2">
-    <NavMenu />
-  </MudDrawer>
+  @* <MudDrawer @bind-Open="@_drawerOpen" *@
+  @*            Variant="DrawerVariant.Temporary" *@
+  @*            Breakpoint="Breakpoint.Md" *@
+  @*            Elevation="2"> *@
+  @*   <NavMenu /> *@
+  @* </MudDrawer> *@
 
   <MudMainContent>
     <MudContainer MaxWidth="MaxWidth.False" Class="pa-3 pa-sm-4 pa-md-6">
