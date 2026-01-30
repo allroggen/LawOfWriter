@@ -30,7 +30,14 @@
     }
 
     .dice.rolling {
-        animation: roll 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        /* solange "rolling" anliegt, soll es sichtbar weiterdrehen */
+        animation: roll 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+    }
+
+    .dice.countdown {
+        /* während des Countdowns nur leicht "wackeln" */
+        animation: wobble 0.35s ease-in-out infinite;
+        filter: brightness(1.08);
     }
 </style>
 
@@ -41,6 +48,14 @@
         50% { transform: rotateX(720deg) rotateY(360deg) rotateZ(180deg); }
         75% { transform: rotateX(1080deg) rotateY(540deg) rotateZ(270deg); }
         100% { transform: rotateX(1440deg) rotateY(720deg) rotateZ(360deg); }
+    }
+
+    @@keyframes wobble {
+        0% { transform: translateY(0) rotateZ(0deg); }
+        25% { transform: translateY(-2px) rotateZ(-2deg); }
+        50% { transform: translateY(0) rotateZ(2deg); }
+        75% { transform: translateY(2px) rotateZ(-1deg); }
+        100% { transform: translateY(0) rotateZ(0deg); }
     }
 </style>
 
@@ -80,7 +95,7 @@
         <div style="display: flex; justify-content: center; gap: 40px; margin-bottom: 40px;">
             <div>
                 <MudText Typo="Typo.subtitle2" Color="Color.Primary" Align="Align.Center" Class="mb-3">Name 1</MudText>
-                <div class="dice dice-1 @(_isDrawing && _drawingStep < 2 ? "rolling" : "")">
+                <div class="dice dice-1 @(_isRollingFirst ? "rolling" : (_countdown > 0 ? "countdown" : ""))">
                     @if (_firstWinner != null)
                     {
                         <span>@_firstWinner</span>
@@ -89,7 +104,7 @@
             </div>
             <div>
                 <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Align="Align.Center" Class="mb-3">Name 2</MudText>
-                <div class="dice dice-2 @(_isDrawing && _drawingStep < 3 ? "rolling" : "")">
+                <div class="dice dice-2 @(_isRollingSecond ? "rolling" : (_countdown > 0 ? "countdown" : ""))">
                     @if (_secondWinner != null)
                     {
                         <span>@_secondWinner</span>
@@ -159,9 +174,13 @@
 
     private string? _firstWinner;
     private string? _secondWinner;
+
     private bool _isDrawing = false;
-    private int _drawingStep = 0;
     private int _countdown = 0;
+
+    // Rolling-Flags: sorgen dafür, dass die Würfel erst NACH dem Countdown rollen
+    private bool _isRollingFirst = false;
+    private bool _isRollingSecond = false;
 
     private Random _random = new();
 
@@ -170,9 +189,8 @@
         if (_isDrawing) return;
 
         _isDrawing = true;
-        _drawingStep = 0;
 
-        // Countdown von 10 bis 1
+        // Countdown von 10 bis 1 (ohne Würfel-Roll)
         for (int i = 10; i > 0; i--)
         {
             _countdown = i;
@@ -182,34 +200,40 @@
 
         _countdown = 0;
 
-        // Ersten Namen ziehen
+        // Ersten Namen ziehen (mit Roll)
+        _isRollingFirst = true;
+        StateHasChanged();
         await DrawName(1);
+        _isRollingFirst = false;
+        StateHasChanged();
 
         // Pause von 2 Sekunden zwischen den Ziehungen
         await Task.Delay(2000);
 
-        // Zweiten Namen ziehen
+        // Zweiten Namen ziehen (mit Roll)
+        _isRollingSecond = true;
+        StateHasChanged();
         await DrawName(2);
+        _isRollingSecond = false;
 
         _isDrawing = false;
+        StateHasChanged();
     }
 
     private async Task DrawName(int position)
     {
-        _drawingStep = position;
         var availableNames = _names.Where(x => !x.Value).Select(x => x.Key).ToList();
 
         if (availableNames.Count == 0) return;
 
-        // Würfel-Wurf Animation - 1.5 Sekunden lang
+        // Während der Animation verschiedene Namen anzeigen
         int animationSteps = 14;
         int delayPerStep = 100;
-        
-        // Während der Animation verschiedene Namen anzeigen
+
         for (int i = 0; i < animationSteps; i++)
         {
             var randomName = availableNames[_random.Next(availableNames.Count)];
-            
+
             if (position == 1)
             {
                 _firstWinner = randomName;
@@ -248,8 +272,9 @@
         }
         _firstWinner = null;
         _secondWinner = null;
-        _drawingStep = 0;
         _countdown = 0;
+        _isRollingFirst = false;
+        _isRollingSecond = false;
         StateHasChanged();
     }
 }
