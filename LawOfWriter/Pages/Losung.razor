@@ -1,6 +1,5 @@
 @page "/losung"
 @using System.Linq
-@attribute [Authorize]
 <style>
     .dice {
         width: 150px;
@@ -160,17 +159,23 @@
 </MudContainer>
 
 @code {
-    private Dictionary<string, bool> _names = new() {
-        { "Hafi", false },
-        { "Alex", false },
-        { "Toffe", false },
-        { "Chris", false },
-        { "Fiete", false },
-        { "Lache", false },
-        { "Lira", false },
-        { "Phillipp", false },
-        { "Timo", false },
+    // Accept names from query string.
+    // Supported formats:
+    //  - /losung?name=Alex&name=Chris
+    //  - /losung?names=Alex,Chris,Timo
+    [SupplyParameterFromQuery(Name = "name")]
+    public string[]? Name { get; set; }
+
+    [SupplyParameterFromQuery(Name = "names")]
+    public string? Names { get; set; }
+
+    private readonly Dictionary<string, bool> _defaultNames = new()
+    {
+        { "Player1", false },
+        { "Player2", false },
     };
+
+    private Dictionary<string, bool> _names = new();
 
     private string? _firstWinner;
     private string? _secondWinner;
@@ -183,6 +188,80 @@
     private bool _isRollingSecond = false;
 
     private Random _random = new();
+
+    protected override void OnInitialized()
+    {
+        // Fallback to defaults initially.
+        //_names = new Dictionary<string, bool>(_defaultNames, StringComparer.OrdinalIgnoreCase);
+    }
+
+    protected override void OnParametersSet()
+    {
+        // If query params are present, they override the default list.
+        var parsedNames = ParseNamesFromQuery();
+        if (parsedNames.Count >= 2)
+        {
+            _names = parsedNames;
+            // Reset winners/drawn state whenever the candidate list changes via URL.
+            _firstWinner = null;
+            _secondWinner = null;
+            _countdown = 0;
+            _isRollingFirst = false;
+            _isRollingSecond = false;
+            _isDrawing = false;
+        }
+        else if (_names.Count == 0)
+        {
+            // Safety: ensure we always have something.
+            _names = new Dictionary<string, bool>(_defaultNames, StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private Dictionary<string, bool> ParseNamesFromQuery()
+    {
+        var result = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
+        // 1) repeated ?name=...
+        if (Name is { Length: > 0 })
+        {
+            foreach (var raw in Name)
+            {
+                AddCandidate(result, raw);
+            }
+        }
+
+        // 2) single ?names=... (CSV / semicolon / pipe / newline)
+        if (!string.IsNullOrWhiteSpace(Names))
+        {
+            var parts = Names.Split(new[] { ',', ';', '|', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var raw in parts)
+            {
+                AddCandidate(result, raw);
+            }
+        }
+
+        return result;
+    }
+
+    private static void AddCandidate(Dictionary<string, bool> target, string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return;
+
+        var trimmed = raw.Trim();
+        if (trimmed.Length == 0) return;
+
+        // Basic safety/UX limits (avoid absurdly long chips / layout issues)
+        if (trimmed.Length > 40)
+        {
+            trimmed = trimmed[..40];
+        }
+
+        // Dedupe; first occurrence wins.
+        if (!target.ContainsKey(trimmed))
+        {
+            target[trimmed] = false;
+        }
+    }
 
     private async Task DrawWinners()
     {
@@ -266,6 +345,7 @@
 
     private void Reset()
     {
+        // Reset only "drawn" flags + current winners; keep the candidate list.
         foreach (var key in _names.Keys.ToList())
         {
             _names[key] = false;
