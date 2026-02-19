@@ -47,8 +47,22 @@
 <script src="_framework/blazor.webassembly#[.{fingerprint}].js" autostart="false"></script>
 <script>
   window._waitingServiceWorker = null;
+  window._blazorUpdateDotNetRef = null;
+  window._pendingUpdateNotification = false;
 
-  // Called by Blazor (via JSInterop) to apply the update and reload
+  // Called by Blazor (MainLayout.OnAfterRenderAsync) to register the .NET callback ref
+  window.registerBlazorUpdateCallback = function (dotNetRef) {
+    window._blazorUpdateDotNetRef = dotNetRef;
+    console.log('%c✅ Blazor update callback registered', 'color: green;');
+    // If an update was already detected before Blazor was ready, fire it now
+    if (window._pendingUpdateNotification) {
+      window._pendingUpdateNotification = false;
+      dotNetRef.invokeMethodAsync('NotifyUpdateAvailable')
+        .catch(err => console.warn('Pending update notification failed:', err));
+    }
+  };
+
+  // Called by Blazor (JSInterop) to apply the update and reload
   window.applyServiceWorkerUpdate = function () {
     if (window._waitingServiceWorker) {
       console.log('%c⬆️ Applying SW update...', 'color: orange; font-weight: bold;');
@@ -62,21 +76,25 @@
   };
 
   function notifyBlazorUpdateAvailable() {
-    const tryNotify = () => {
-      if (window.DotNet) {
-        window.DotNet.invokeMethodAsync('LawOfWriter', 'OnServiceWorkerUpdateAvailable')
-          .then(() => console.log('%c✅ Blazor notified of SW update', 'color: green;'))
-          .catch(err => console.warn('SW update notification failed:', err));
-      } else {
-        console.log('%c⏳ DotNet not ready, retrying...', 'color: gray;');
-        setTimeout(tryNotify, 500);
-      }
-    };
-    tryNotify();
+    if (window._blazorUpdateDotNetRef) {
+      window._blazorUpdateDotNetRef.invokeMethodAsync('NotifyUpdateAvailable')
+        .then(() => console.log('%c✅ Blazor notified of SW update', 'color: green;'))
+        .catch(err => console.warn('SW update notification failed:', err));
+    } else {
+      // Blazor not rendered yet – queue it, registerBlazorUpdateCallback will send it
+      console.log('%c⏳ Blazor not ready yet, queuing update notification...', 'color: gray;');
+      window._pendingUpdateNotification = true;
+    }
+  }
+
+  function handleWaitingWorker(worker) {
+    if (window._waitingServiceWorker) return;
+    console.log('%c🔔 New SW version waiting!', 'color: blue; font-weight: bold;');
+    window._waitingServiceWorker = worker;
+    notifyBlazorUpdateAvailable();
   }
 
   function attachUpdateListeners(reg) {
-    // New SW already waiting (e.g. page opened right after a deploy)
     if (reg.waiting) {
       handleWaitingWorker(reg.waiting);
     }
@@ -106,15 +124,7 @@
     });
   }
 
-  function handleWaitingWorker(worker) {
-    if (window._waitingServiceWorker) return;
-    console.log('%c🔔 New SW version waiting!', 'color: blue; font-weight: bold;');
-    window._waitingServiceWorker = worker;
-    notifyBlazorUpdateAvailable();
-  }
-
   // Intercept navigator.serviceWorker.register BEFORE Blazor calls it
-  // This ensures we get the registration object no matter which SW file Blazor uses
   if ('serviceWorker' in navigator) {
     const _originalRegister = navigator.serviceWorker.register.bind(navigator.serviceWorker);
     navigator.serviceWorker.register = function (scriptURL, options) {

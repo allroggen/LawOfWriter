@@ -5,6 +5,7 @@
 @inject IJSRuntime Js
 @inject IConfiguration Configuration
 @inject IDialogService DialogService
+@implements IAsyncDisposable
 
 <MudThemeProvider DefaultScrollbar="true" IsDarkMode="@DarkMode" Theme="_theme" />
 <MudPopoverProvider />
@@ -90,26 +91,26 @@
   public bool DarkMode { get; set; }
   private bool _updateAvailable;
   private string _appVersion = "–";
-
-  // Static reference so the JS-invokable static method can reach this instance
-  private static MainLayout? _instance;
+  private DotNetObjectReference<MainLayout>? _dotNetRef;
 
   protected override async Task OnInitializedAsync()
   {
-    _instance = this;
     DarkMode = await ThemeService.GetDarkModeAsync(defaultValue: false);
     _appVersion = Configuration["AppVersion"] ?? "–";
   }
 
-  /// <summary>Called from JS when a new service worker is waiting to be activated.</summary>
-  [JSInvokable("OnServiceWorkerUpdateAvailable")]
-  public static Task OnServiceWorkerUpdateAvailable()
+  protected override async Task OnAfterRenderAsync(bool firstRender)
   {
-    _instance?.MarkUpdateAvailable();
-    return Task.CompletedTask;
+    if (firstRender)
+    {
+      // Pass a DotNetObjectReference to JS so it can call back into THIS instance
+      _dotNetRef = DotNetObjectReference.Create(this);
+      await Js.InvokeVoidAsync("registerBlazorUpdateCallback", _dotNetRef);
+    }
   }
 
-  private void MarkUpdateAvailable()
+  [JSInvokable]
+  public void NotifyUpdateAvailable()
   {
     _updateAvailable = true;
     InvokeAsync(StateHasChanged);
@@ -129,6 +130,12 @@
     {
       await Js.InvokeVoidAsync("applyServiceWorkerUpdate");
     }
+  }
+
+  public async ValueTask DisposeAsync()
+  {
+    _dotNetRef?.Dispose();
+    await Task.CompletedTask;
   }
 
   private async Task OnDarkModeChanged(bool value)
@@ -180,3 +187,16 @@
     return $"{char.ToUpperInvariant(first[0])}{char.ToUpperInvariant(last[0])}";
   }
 }
+
+    if (parts.Length == 1)
+    {
+      var p = parts[0];
+      return (p.Length >= 2 ? p[..2] : p[..1]).ToUpperInvariant();
+    }
+
+    var first = parts[0];
+    var last = parts[^1];
+    return $"{char.ToUpperInvariant(first[0])}{char.ToUpperInvariant(last[0])}";
+  }
+}
+
