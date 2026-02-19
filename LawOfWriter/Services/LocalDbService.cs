@@ -173,6 +173,40 @@ public class LocalDbService
     }
 
     /// <summary>
+    /// Baut einen vollständigen GameApiDto aus den lokal gespeicherten Daten zusammen.
+    /// Gibt null zurück wenn der Spieltag lokal nicht vorhanden ist.
+    /// </summary>
+    public async Task<GameApiDto?> GetLocalGameApiAsync(int gameId)
+    {
+        var gameDay = await GetGameDayAsync(gameId);
+        if (gameDay is null) return null;
+
+        var localActions = await GetActionsByGameIdAsync(gameId);
+        var dtos = localActions.Select(MapToDto).ToList();
+
+        return new GameApiDto { GameDayDto = gameDay, GameDayActionDtos = dtos };
+    }
+
+    /// <summary>
+    /// Gibt alle lokal gespeicherten GameApiDto zurück (alle Spieltage mit ihren Actions).
+    /// </summary>
+    public async Task<List<GameApiDto>> GetAllLocalGameApisAsync()
+    {
+        var gameDays = await GetAllGameDaysAsync();
+        var result = new List<GameApiDto>();
+        foreach (var gd in gameDays)
+        {
+            var localActions = await GetActionsByGameIdAsync(gd.Id);
+            result.Add(new GameApiDto
+            {
+                GameDayDto = gd,
+                GameDayActionDtos = localActions.Select(MapToDto).ToList()
+            });
+        }
+        return result;
+    }
+
+    /// <summary>
     /// Löscht alle lokal gespeicherten Daten (GameDays und Actions).
     /// </summary>
     public async Task ClearAllAsync()
@@ -206,6 +240,30 @@ public class LocalDbService
         Gesamt = dto.Gesamt,
         IsSynced = isSynced,
         LastSyncedAt = isSynced ? DateTime.UtcNow : null
+    };
+
+    private static GameDayActionDto MapToDto(LocalGameDayAction local) => new()
+    {
+        Id = local.Id,
+        GameId = local.GameId,
+        UserId = local.UserId,
+        User = local.UserFullName is not null
+            ? new AspNetUser { Id = local.UserId ?? "", Name = local.UserFullName }
+            : null,
+        Pumpe = local.Pumpe,
+        Band = local.Band,
+        Spiele = local.Spiele,
+        Neuner = local.Neuner,
+        Kranz = local.Kranz,
+        Present = local.Present,
+        IsLocked = local.IsLocked,
+        Created = local.Created,
+        Createdby = local.Createdby,
+        Changed = local.Changed,
+        Changedby = local.Changedby,
+        PricelistId = local.PricelistId,
+        IsPresent = local.IsPresent,
+        Gesamt = local.Gesamt,
     };
 }
 

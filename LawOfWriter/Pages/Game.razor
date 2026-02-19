@@ -123,18 +123,78 @@
     private async Task LoadGameData() {
         try {
             IsLoading = true;
-            _gameDays = await ApiService.GetAsync<List<GameApiDto>>("data/game");
-            foreach (var gameApiDto in _gameDays)
-            {
-                await LocalDbService.SaveGameApiAsync(gameApiDto, isSynced: false);
+
+            // ── Schritt 1: Lokale Daten sofort anzeigen ──────────────────────
+            var localData = await LocalDbService.GetAllLocalGameApisAsync();
+            if (localData.Count > 0) {
+                _gameDays = localData;
+                IsLoading = false;
+                await RefreshSyncStatusAsync();
             }
-            await RefreshSyncStatusAsync();
+
+            // ── Schritt 2: API im Hintergrund abfragen ────────────────────────
+            var serverData = await ApiService.GetAsync<List<GameApiDto>>("data/game");
+            if (serverData is null) return;
+
+            // Neue Spieltage einfügen; bestehende nur aktualisieren wenn alle
+            // Actions bereits synced sind (= keine lokalen Änderungen offen)
+            foreach (var serverGame in serverData)
+            {
+                var gameId = serverGame.GameDayDto.Id;
+                var existing = _gameDays?.FirstOrDefault(g => g.GameDayDto.Id == gameId);
+
+                if (existing is null)
+                {
+                    // Neuer Spieltag – direkt aus Server übernehmen
+                    await LocalDbService.SaveGameApiAsync(serverGame, isSynced: false);
+                    _gameDays ??= [];
+                    _gameDays.Add(serverGame);
+                }
+                else
+                {
+                    // Spieltag existiert lokal – nur Actions aktualisieren die bereits synced sind
+                    // (unsynced = lokal geändert → nicht überschreiben)
+                    var (total, synced) = await LocalDbService.GetSyncStatusAsync(gameId);
+                    if (total == 0 || total == synced)
+                    {
+                        // Alle synced oder noch keine lokalen Daten → Server-Version übernehmen
+                        await LocalDbService.SaveGameApiAsync(serverGame, isSynced: false);
+                        var idx = _gameDays!.IndexOf(existing);
+                        _gameDays[idx] = serverGame;
+                    }
+                    else
+                    {
+                        // Es gibt unsynced Actions → GameDay-Meta aktualisieren,
+                        // aber einzelne Actions nur ersetzen wenn sie synced sind
+                        await LocalDbService.SaveGameDayAsync(serverGame.GameDayDto);
+                        foreach (var serverAction in serverGame.GameDayActionDtos)
+                        {
+                            var localAction = await LocalDbService.GetGameDayActionAsync(serverAction.Id);
+                            if (localAction is null || localAction.IsSynced)
+                            {
+                                // Neu oder bereits synced → Server-Version speichern
+                                await LocalDbService.SaveGameDayActionAsync(serverAction, isSynced: false);
+                                // In-Memory DTO aktualisieren
+                                var dtoIdx = existing.GameDayActionDtos
+                                    .FindIndex(d => d.Id == serverAction.Id);
+                                if (dtoIdx >= 0)
+                                    existing.GameDayActionDtos[dtoIdx] = serverAction;
+                                else
+                                    existing.GameDayActionDtos.Add(serverAction);
+                            }
+                            // localAction.IsSynced == false → lokale Änderung behalten
+                        }
+                    }
+                }
+            }
+
             IsLoading = false;
-            await InvokeAsync(StateHasChanged);
+            await RefreshSyncStatusAsync();
         }
         catch (Exception e) {
             Console.WriteLine(e);
-            throw;
+            IsLoading = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
