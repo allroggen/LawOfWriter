@@ -2,7 +2,8 @@
 @using LawOfWriter.DTO
 @using LawOfWriter.Services
 @using LawOfWriter.Pages.Component
-@inject ApiService apiService
+@inject ApiService ApiService
+@inject LocalDbService LocalDbService
 @attribute [Authorize]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
@@ -89,7 +90,11 @@
     private async Task LoadGameData() {
         try {
             IsLoading = true;
-            _gameDays = await apiService.GetAsync<List<GameApiDto>>("data/game");
+            _gameDays = await ApiService.GetAsync<List<GameApiDto>>("data/game");
+            foreach (var gameApiDto in _gameDays)
+            {
+                await LocalDbService.SaveGameApiAsync(gameApiDto);
+            }
             IsLoading = false;
             await InvokeAsync(StateHasChanged);
         }
