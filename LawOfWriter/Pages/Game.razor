@@ -4,6 +4,7 @@
 @using LawOfWriter.Pages.Component
 @inject ApiService ApiService
 @inject LocalDbService LocalDbService
+@inject ISnackbar Snackbar
 @attribute [Authorize]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
@@ -25,6 +26,13 @@
             else {
                 <MudGrid Spacing="2">
                     @foreach (var item in _gameDays) {
+                        var gameId = item.GameDayDto.Id;
+                        var status = _syncStatus.GetValueOrDefault(gameId);
+                        var total = status.Total;
+                        var synced = status.Synced;
+                        var allSynced = total > 0 && synced == total;
+                        var badgeColor = allSynced ? Color.Success : (synced > 0 ? Color.Warning : Color.Error);
+
                         <MudItem xs="12" sm="6" md="4" lg="3">
                             <MudCard Elevation="1" Class="h-100">
                                 <MudCardHeader>
@@ -33,15 +41,37 @@
                                             @item.GameDayDto.GameDay1.ToString("dd.MM.yyyy")
                                         </MudText>
                                     </CardHeaderContent>
+                                    <CardHeaderActions>
+                                        @if (total > 0) {
+                                            <MudTooltip Text="@($"{synced} von {total} übertragen")">
+                                                <MudChip T="string" Color="@badgeColor" Size="Size.Small" Variant="Variant.Filled">
+                                                    @synced / @total
+                                                </MudChip>
+                                            </MudTooltip>
+                                        }
+                                    </CardHeaderActions>
                                 </MudCardHeader>
 
-                                <MudCardActions Class="pa-3 pt-0">
+                                <MudCardActions Class="pa-3 pt-0 d-flex gap-2">
                                     <MudButton FullWidth="true"
                                                Variant="Variant.Filled"
                                                Color="Color.Primary"
                                                OnClick="@(() => ShowDetails(item))">
                                         Öffnen
                                     </MudButton>
+                                    <MudTooltip Text="@(allSynced ? "Alle bereits übertragen" : "Änderungen zur API übertragen")">
+                                        <MudButton FullWidth="true"
+                                                   Variant="Variant.Outlined"
+                                                   Color="@(allSynced ? Color.Success : Color.Secondary)"
+                                                   Disabled="@(_transferring == gameId)"
+                                                   StartIcon="@(allSynced ? Icons.Material.Filled.CloudDone : Icons.Material.Filled.CloudUpload)"
+                                                   OnClick="@(() => TransferToApiAsync(item))">
+                                            @if (_transferring == gameId) {
+                                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1"/>
+                                            }
+                                            Übertragen
+                                        </MudButton>
+                                    </MudTooltip>
                                 </MudCardActions>
                             </MudCard>
                         </MudItem>
@@ -60,7 +90,7 @@
             <MudText Typo="Typo.subtitle2">Details</MudText>
         </MudPaper>
 
-        <GameDetails GameDay="_selectedGameDay"/>
+        <GameDetails GameDay="_selectedGameDay" OnActionChanged="@RefreshSyncStatusAsync"/>
     }
 
 </MudContainer>
@@ -71,6 +101,10 @@
     private GameApiDto? _selectedGameDay;
     private bool _showDetails = false;
     public bool IsLoading { get; set; } = true;
+
+    // gameId → (Total, Synced)
+    private Dictionary<int, (int Total, int Synced)> _syncStatus = new();
+    private int? _transferring = null;
 
     private void ShowDetails(GameApiDto gameDay) {
         _selectedGameDay = gameDay;
@@ -86,15 +120,15 @@
         await LoadGameData();
     }
 
-
     private async Task LoadGameData() {
         try {
             IsLoading = true;
             _gameDays = await ApiService.GetAsync<List<GameApiDto>>("data/game");
             foreach (var gameApiDto in _gameDays)
             {
-                await LocalDbService.SaveGameApiAsync(gameApiDto);
+                await LocalDbService.SaveGameApiAsync(gameApiDto, isSynced: false);
             }
+            await RefreshSyncStatusAsync();
             IsLoading = false;
             await InvokeAsync(StateHasChanged);
         }
@@ -104,4 +138,55 @@
         }
     }
 
+    private async Task RefreshSyncStatusAsync() {
+        if (_gameDays is null) return;
+        foreach (var g in _gameDays)
+        {
+            _syncStatus[g.GameDayDto.Id] = await LocalDbService.GetSyncStatusAsync(g.GameDayDto.Id);
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task TransferToApiAsync(GameApiDto gameDay) {
+        var gameId = gameDay.GameDayDto.Id;
+        _transferring = gameId;
+        StateHasChanged();
+
+        try {
+            var unsynced = await LocalDbService.GetActionsByGameIdAsync(gameId);
+            var pending = unsynced.Where(a => !a.IsSynced).ToList();
+
+            if (pending.Count == 0) {
+                Snackbar.Add("Alle Datensätze bereits übertragen.", Severity.Info);
+                return;
+            }
+
+            var success = 0;
+            foreach (var action in pending)
+            {
+                // Den originalen DTO aus dem in-memory GameDay verwenden
+                var dto = gameDay.GameDayActionDtos.FirstOrDefault(d => d.Id == action.Id);
+                if (dto is null) continue;
+
+                var ok = await ApiService.PostAsync<GameDayActionDto>("data/gameaction", dto);
+                if (ok) {
+                    await LocalDbService.MarkActionAsSyncedAsync(action.Id);
+                    success++;
+                }
+            }
+
+            if (success == pending.Count)
+                Snackbar.Add($"✅ Alle {success} Datensätze erfolgreich übertragen.", Severity.Success);
+            else
+                Snackbar.Add($"⚠️ {success} von {pending.Count} übertragen. Bitte erneut versuchen.", Severity.Warning);
+        }
+        catch (Exception ex) {
+            Console.WriteLine(ex);
+            Snackbar.Add("Fehler beim Übertragen zur API.", Severity.Error);
+        }
+        finally {
+            _transferring = null;
+            await RefreshSyncStatusAsync();
+        }
+    }
 }

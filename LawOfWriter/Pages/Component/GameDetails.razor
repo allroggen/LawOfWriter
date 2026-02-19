@@ -1,5 +1,7 @@
 @using LawOfWriter.DTO
+@using LawOfWriter.Services
 @inject IDialogService DialogService
+@inject LocalDbService LocalDbService
 
 <h3>@GameDay.GameDayDto.GameDay1.ToString("dd.MM.yyyy")</h3>
 
@@ -28,6 +30,7 @@
 
 @code {
     [Parameter] public required GameApiDto GameDay { get; set; }
+    [Parameter] public EventCallback OnActionChanged { get; set; }
     
     private async Task OpenEditDialog(GameDayActionDto item)
     {
@@ -48,7 +51,9 @@
         
         if (result is not { Canceled: true })
         {
-            // Optional: Hier können Sie die Daten aktualisieren oder speichern
+            // Geänderten Datensatz lokal speichern → IsSynced = false (noch nicht zur API übertragen)
+            await LocalDbService.SaveGameDayActionAsUnsyncedAsync(item);
+            await OnActionChanged.InvokeAsync();
             StateHasChanged();
         }
     }

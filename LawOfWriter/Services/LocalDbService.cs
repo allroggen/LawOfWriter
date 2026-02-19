@@ -70,11 +70,19 @@ public class LocalDbService
 
     /// <summary>
     /// Speichert einen GameDayAction-Datensatz in der lokalen Datenbank.
-    /// IsSynced wird beim ersten Speichern auf false gesetzt.
+    /// Falls der Datensatz bereits existiert, wird der bestehende IsSynced-Status beibehalten.
+    /// Der isSynced-Parameter wird nur verwendet, wenn der Datensatz neu angelegt wird.
     /// </summary>
     public async Task SaveGameDayActionAsync(GameDayActionDto action, bool isSynced = false)
     {
-        var local = MapToLocal(action, isSynced);
+        // Bestehenden Sync-Status aus der DB lesen und beibehalten
+        var existing = await GetGameDayActionAsync(action.Id);
+        var effectiveSynced = existing?.IsSynced ?? isSynced;
+
+        var local = MapToLocal(action, effectiveSynced);
+        if (existing?.LastSyncedAt is not null)
+            local.LastSyncedAt = existing.LastSyncedAt;
+
         var json = JsonSerializer.Serialize(local, JsonOptions);
         await _js.InvokeAsync<bool>("localDb.saveGameDayAction", json);
     }
@@ -99,6 +107,18 @@ public class LocalDbService
     {
         var json = await _js.InvokeAsync<string?>("localDb.getGameDayAction", id);
         return json is null ? null : JsonSerializer.Deserialize<LocalGameDayAction>(json, JsonOptions);
+    }
+
+    /// <summary>
+    /// Speichert einen geänderten GameDayAction-Datensatz und setzt IsSynced explizit auf false.
+    /// Verwenden wenn der User einen Datensatz bearbeitet hat.
+    /// </summary>
+    public async Task SaveGameDayActionAsUnsyncedAsync(GameDayActionDto action)
+    {
+        var local = MapToLocal(action, isSynced: false);
+        local.LastSyncedAt = null;
+        var json = JsonSerializer.Serialize(local, JsonOptions);
+        await _js.InvokeAsync<bool>("localDb.saveGameDayAction", json);
     }
 
     /// <summary>
@@ -141,6 +161,15 @@ public class LocalDbService
     public async Task DeleteGameDayActionAsync(int id)
     {
         await _js.InvokeAsync<bool>("localDb.deleteGameDayAction", id);
+    }
+
+    /// <summary>
+    /// Gibt den Sync-Status (Gesamt- und Synced-Anzahl) für einen Spieltag zurück.
+    /// </summary>
+    public async Task<(int Total, int Synced)> GetSyncStatusAsync(int gameId)
+    {
+        var actions = await GetActionsByGameIdAsync(gameId);
+        return (actions.Count, actions.Count(a => a.IsSynced));
     }
 
     /// <summary>
