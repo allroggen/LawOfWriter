@@ -5,6 +5,7 @@
 @inject ApiService ApiService
 @inject LocalDbService LocalDbService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @attribute [Authorize]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
@@ -101,6 +102,12 @@
                     @detailSynced / @detailTotal übertragen
                 </MudChip>
             </MudTooltip>
+            <MudTooltip Text="Spieltag zurücksetzen">
+                <MudIconButton Icon="@Icons.Material.Filled.RestartAlt"
+                               Color="Color.Error"
+                               Size="Size.Small"
+                               OnClick="@(() => ConfirmResetGameDayAsync(_selectedGameDay!))" />
+            </MudTooltip>
         </MudPaper>
 
         <GameDetails GameDay="_selectedGameDay" OnActionChanged="@RefreshSyncStatusAsync"/>
@@ -122,6 +129,47 @@
     private void ShowDetails(GameApiDto gameDay) {
         _selectedGameDay = gameDay;
         _showDetails = true;
+    }
+
+    private async Task ConfirmResetGameDayAsync(GameApiDto gameDay) {
+        var date = gameDay.GameDayDto.GameDay1.ToString("dd.MM.yyyy");
+        var confirmed = await DialogService.ShowMessageBox(
+            title: $"Spieltag {date} zurücksetzen",
+            message: $"Alle lokalen Änderungen für den {date} werden verworfen und die Originaldaten vom Server wiederhergestellt. Nicht übertragene Änderungen gehen verloren.",
+            yesText: "Zurücksetzen",
+            cancelText: "Abbrechen",
+            options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true }
+        );
+
+        if (confirmed is not true) return;
+
+        // Lokale Actions dieses Spieltags löschen
+        var gameId = gameDay.GameDayDto.Id;
+        var localActions = await LocalDbService.GetActionsByGameIdAsync(gameId);
+        foreach (var a in localActions)
+            await LocalDbService.DeleteGameDayActionAsync(a.Id);
+        await LocalDbService.DeleteGameDayAsync(gameId);
+
+        // Frisch vom Server laden
+        Snackbar.Add($"Spieltag {date} wird vom Server wiederhergestellt…", Severity.Info);
+        var serverGame = await ApiService.GetAsync<GameApiDto>($"data/game/{gameId}");
+        if (serverGame is not null)
+        {
+            await LocalDbService.SaveGameApiAsync(serverGame, isSynced: false);
+            var idx = _gameDays!.FindIndex(g => g.GameDayDto.Id == gameId);
+            if (idx >= 0) _gameDays[idx] = serverGame;
+            _selectedGameDay = serverGame;
+        }
+        else
+        {
+            // Fallback: komplette Liste neu laden
+            await LoadGameData();
+            _showDetails = false;
+            _selectedGameDay = null;
+        }
+
+        await RefreshSyncStatusAsync();
+        Snackbar.Add($"✅ Spieltag {date} wiederhergestellt.", Severity.Success);
     }
 
     private async Task BackToListAsync() {
