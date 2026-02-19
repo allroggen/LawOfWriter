@@ -129,3 +129,72 @@ code {
     display: inline-block;
     animation: spin 0.6s ease-in-out;
 }
+
+/* ──────────────────────────────────────────
+   Edit Game Action Dialog – responsive styles
+   ────────────────────────────────────────── */
+
+/* Card tile for each value */
+.edit-action-card {
+    background: var(--mud-palette-background-grey, #f5f5f5);
+    border-radius: 14px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.edit-action-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.edit-action-card:active {
+    transform: scale(0.985);
+}
+
+/* Action buttons with rounded style */
+.edit-action-btn {
+    border-radius: 12px !important;
+    min-height: 48px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.03em;
+}
+
+/* Dialog itself */
+.edit-action-dialog .mud-dialog-content {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Smartphone: stack cards fully, increase touch targets */
+@media (max-width: 599.95px) {
+    .edit-action-dialog {
+        margin: 8px !important;
+        max-height: calc(100dvh - 16px) !important;
+        border-radius: 18px !important;
+    }
+
+    .edit-action-dialog .mud-dialog-title {
+        padding: 16px 20px 8px !important;
+    }
+
+    .edit-action-card {
+        padding: 16px !important;
+        border-radius: 12px;
+    }
+
+    .edit-action-btn {
+        min-height: 52px !important;
+        font-size: 1rem !important;
+    }
+}
+
+/* Tablet: subtle refinements */
+@media (min-width: 600px) and (max-width: 959.95px) {
+    .edit-action-dialog {
+        border-radius: 20px !important;
+    }
+
+    .edit-action-card {
+        padding: 18px !important;
+    }
+}
+

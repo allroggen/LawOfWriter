@@ -1,20 +1,24 @@
-<MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
-    <MudIconButton Icon="@Icons.Material.Filled.Remove"
-                   Style="touch-action: manipulation;"
-                   OnClick="Decrease" />
+<div class="d-flex align-center justify-center gap-3" style="width:100%;">
+    <MudFab StartIcon="@Icons.Material.Filled.Remove"
+            Color="Color.Default"
+            Size="Size.Medium"
+            Style="touch-action: manipulation; min-width:44px; min-height:44px;"
+            aria-label="Wert verringern"
+            Disabled="@(Value is null or <= 0)"
+            OnClick="Decrease" />
 
-    <MudNumericField T="decimal?"
-                     Value="Value"
-                     ValueChanged="ValueChanged"
-                     Step="@Step"
-                     Format="@Format"
-                     HideSpinButtons="true"
-                     Style="max-width:120px" />
+    <MudText Typo="Typo.h5" Align="Align.Center"
+             Style="min-width:56px; font-variant-numeric: tabular-nums; user-select:none;">
+        @((Value ?? 0).ToString(Format))
+    </MudText>
 
-    <MudIconButton Icon="@Icons.Material.Filled.Add"
-                   Style="touch-action: manipulation;"
-                   OnClick="Increase" />
-</MudStack>
+    <MudFab StartIcon="@Icons.Material.Filled.Add"
+            Color="Color.Primary"
+            Size="Size.Medium"
+            Style="touch-action: manipulation; min-width:44px; min-height:44px;"
+            aria-label="Wert erhöhen"
+            OnClick="Increase" />
+</div>
 
 @code {
     [Parameter] public decimal? Value { get; set; }

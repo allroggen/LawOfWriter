@@ -1,45 +1,99 @@
 @using LawOfWriter.DTO
 
-<MudDialog MaxWidth="MaxWidth.Small" FullWidth="true">
+<MudDialog MaxWidth="MaxWidth.Small" FullWidth="true"
+           Class="edit-action-dialog"
+           ClassContent="pa-4 pa-sm-6"
+           ClassActions="pa-4 pa-sm-6 pt-0">
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">Ergebnis bearbeiten</MudText>
+        </div>
+    </TitleContent>
+
     <DialogContent>
-
-        <MudGrid Spacing="2">
-            <!-- Zahlenfelder mit Plus / Minus -->
+        <MudGrid Spacing="3">
+            <!-- Band -->
             <MudItem xs="12" sm="6">
-                <MudText Typo="Typo.subtitle2">Band</MudText>
-                <NumericStepper @bind-Value="GameAction.Band" />
+                <MudPaper Class="edit-action-card pa-3" Elevation="0">
+                    <div class="d-flex align-center gap-2 mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Album"
+                                 Color="Color.Secondary" Size="Size.Small" />
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary">
+                            Band
+                        </MudText>
+                    </div>
+                    <NumericStepper @bind-Value="GameAction.Band" />
+                </MudPaper>
             </MudItem>
 
+            <!-- Pumpe -->
             <MudItem xs="12" sm="6">
-                <MudText Typo="Typo.subtitle2">Pumpe</MudText>
-                <NumericStepper @bind-Value="GameAction.Pumpe" />
+                <MudPaper Class="edit-action-card pa-3" Elevation="0">
+                    <div class="d-flex align-center gap-2 mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Opacity"
+                                 Color="Color.Info" Size="Size.Small" />
+                        <MudText Typo="Typo.subtitle2" Color="Color.Info">
+                            Pumpe
+                        </MudText>
+                    </div>
+                    <NumericStepper @bind-Value="GameAction.Pumpe" />
+                </MudPaper>
             </MudItem>
 
+            <!-- Kranz -->
             <MudItem xs="12" sm="6">
-                <MudText Typo="Typo.subtitle2">Kranz</MudText>
-                <NumericStepper @bind-Value="GameAction.Kranz" />
+                <MudPaper Class="edit-action-card pa-3" Elevation="0">
+                    <div class="d-flex align-center gap-2 mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.EmojiEvents"
+                                 Color="Color.Warning" Size="Size.Small" />
+                        <MudText Typo="Typo.subtitle2" Color="Color.Warning">
+                            Kranz
+                        </MudText>
+                    </div>
+                    <NumericStepper @bind-Value="GameAction.Kranz" />
+                </MudPaper>
             </MudItem>
 
+            <!-- Neuner -->
             <MudItem xs="12" sm="6">
-                <MudText Typo="Typo.subtitle2">Neuner</MudText>
-                <NumericStepper @bind-Value="GameAction.Neuner" />
+                <MudPaper Class="edit-action-card pa-3" Elevation="0">
+                    <div class="d-flex align-center gap-2 mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Filter9"
+                                 Color="Color.Success" Size="Size.Small" />
+                        <MudText Typo="Typo.subtitle2" Color="Color.Success">
+                            Neuner
+                        </MudText>
+                    </div>
+                    <NumericStepper @bind-Value="GameAction.Neuner" />
+                </MudPaper>
             </MudItem>
 
-            <MudItem xs="12" sm="6">
-                <MudText Typo="Typo.subtitle2">Spiele</MudText>
-                <NumericStepperDecimal @bind-Value="GameAction.Spiele"
-                                       Step="0.5M" />
+            <!-- Spiele -->
+            <MudItem xs="12">
+                <MudPaper Class="edit-action-card pa-3" Elevation="0">
+                    <div class="d-flex align-center gap-2 mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.SportsScore"
+                                 Color="Color.Primary" Size="Size.Small" />
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">
+                            Spiele
+                        </MudText>
+                    </div>
+                    <NumericStepperDecimal @bind-Value="GameAction.Spiele"
+                                           Step="0.5M" />
+                </MudPaper>
             </MudItem>
-
         </MudGrid>
-
     </DialogContent>
 
-    <!-- Actions -->
     <DialogActions>
-        <div class="d-flex flex-column flex-sm-row gap-2" style="width: 100%;">
+        <div class="d-flex flex-column-reverse flex-sm-row gap-2" style="width: 100%;">
             <MudButton FullWidth="true"
-                       Variant="Variant.Outlined"
+                       Variant="Variant.Text"
+                       Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.Close"
+                       Size="Size.Large"
+                       Class="edit-action-btn"
                        OnClick="Cancel">
                 Abbrechen
             </MudButton>
@@ -47,6 +101,9 @@
             <MudButton FullWidth="true"
                        Color="Color.Primary"
                        Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Check"
+                       Size="Size.Large"
+                       Class="edit-action-btn"
                        OnClick="Save">
                 Speichern
             </MudButton>
@@ -56,7 +113,7 @@
 
 @code {
     [CascadingParameter]
-    private IMudDialogInstance  MudDialog { get; set; } = null!;
+    private IMudDialogInstance MudDialog { get; set; } = null!;
 
     [Parameter]
     public required GameDayActionDto GameAction { get; set; }
