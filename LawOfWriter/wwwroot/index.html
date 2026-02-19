@@ -44,7 +44,53 @@
 <!-- Important: Increment the version parameter whenever you update MudBlazor to prevent caching issues -->
 <script src="_content/MudBlazor/MudBlazor.min.js?v=1"></script>
 <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
-<script>navigator.serviceWorker.register('service-worker.js', {updateViaCache: 'none'});</script>
+<script>
+  // Holds reference to the waiting service worker
+  window._waitingServiceWorker = null;
+
+  // Called by Blazor to apply the pending update
+  window.applyServiceWorkerUpdate = function () {
+    if (window._waitingServiceWorker) {
+      window._waitingServiceWorker.postMessage({ type: 'SKIP_WAITING' });
+      window._waitingServiceWorker = null;
+      // Reload once the new SW has taken control
+      navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+    }
+  };
+
+  navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
+    .then(reg => {
+      // A new SW is already waiting (page was reloaded after update downloaded)
+      if (reg.waiting) {
+        window._waitingServiceWorker = reg.waiting;
+        notifyBlazorUpdateAvailable();
+      }
+
+      // A new SW finishes installing while the page is open
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            window._waitingServiceWorker = newWorker;
+            notifyBlazorUpdateAvailable();
+          }
+        });
+      });
+    });
+
+  function notifyBlazorUpdateAvailable() {
+    // Blazor may not be ready yet - retry until the interop is available
+    const tryNotify = () => {
+      if (window.DotNet) {
+        window.DotNet.invokeMethodAsync('LawOfWriter', 'OnServiceWorkerUpdateAvailable')
+          .catch(err => console.warn('SW update notification failed:', err));
+      } else {
+        setTimeout(tryNotify, 500);
+      }
+    };
+    tryNotify();
+  }
+</script>
 </body>
 
 </html>

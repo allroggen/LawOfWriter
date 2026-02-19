@@ -1,0 +1,23 @@
+<MudStack Row="false" Spacing="1">
+    <MudText Typo="Typo.body2">
+        <b>Update verfügbar!</b> Eine neue Version der App ist bereit.
+    </MudText>
+    <MudButton Variant="Variant.Outlined"
+               Color="Color.Inherit"
+               Size="Size.Small"
+               StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="@OnInstallClicked">
+        Jetzt installieren
+    </MudButton>
+</MudStack>
+
+@code {
+    [Parameter] public EventCallback OnInstall { get; set; }
+
+    private async Task OnInstallClicked()
+    {
+        await OnInstall.InvokeAsync();
+    }
+}
+
+

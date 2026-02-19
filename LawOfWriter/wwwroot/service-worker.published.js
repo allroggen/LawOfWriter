@@ -4,12 +4,19 @@
 self.importScripts('./service-worker-assets.js');
 self.addEventListener('install', event => {
     event.waitUntil(onInstall(event));
-    self.skipWaiting(); // Immediately activate new version without waiting for tabs to close
+    // Do NOT call skipWaiting() here - user must confirm the update via the toast notification
 });
 self.addEventListener('activate', event => {
     event.waitUntil(
-        onActivate(event).then(() => self.clients.claim()) // Take control of all open tabs immediately
+        onActivate(event).then(() => self.clients.claim())
     );
+});
+
+// Listen for a message from the Blazor app to trigger skipWaiting
+self.addEventListener('message', event => {
+    if (event.data?.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
 self.addEventListener('fetch', event => event.respondWith(onFetch(event)));
 

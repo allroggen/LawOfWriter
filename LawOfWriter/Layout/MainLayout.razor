@@ -2,6 +2,8 @@
 @attribute [Authorize]
 @using System.Security.Claims
 @inject Services.ThemeService ThemeService
+@inject ISnackbar Snackbar
+@inject IJSRuntime Js
 
 <MudThemeProvider DefaultScrollbar="true" IsDarkMode="@DarkMode" Theme="_theme" />
 <MudPopoverProvider />
@@ -73,9 +75,42 @@
   private MudTheme _theme = new();
   public bool DarkMode { get; set; }
 
+  // Static reference so the JS-invokable static method can reach this instance
+  private static MainLayout? _instance;
+
   protected override async Task OnInitializedAsync()
   {
+    _instance = this;
     DarkMode = await ThemeService.GetDarkModeAsync(defaultValue: false);
+  }
+
+  /// <summary>Called from JS when a new service worker is waiting to be activated.</summary>
+  [JSInvokable("OnServiceWorkerUpdateAvailable")]
+  public static Task OnServiceWorkerUpdateAvailable()
+  {
+    _instance?.ShowUpdateToast();
+    return Task.CompletedTask;
+  }
+
+  private void ShowUpdateToast()
+  {
+    Snackbar.Add<UpdateSnackbar>(new Dictionary<string, object>
+    {
+      { "OnInstall", EventCallback.Factory.Create(this, ApplyUpdateAsync) }
+    },
+    Severity.Info,
+    options =>
+    {
+      options.RequireInteraction = true;
+      options.CloseAfterNavigation = false;
+      options.SnackbarVariant = Variant.Filled;
+    });
+    InvokeAsync(StateHasChanged);
+  }
+
+  private async Task ApplyUpdateAsync()
+  {
+    await Js.InvokeVoidAsync("applyServiceWorkerUpdate");
   }
 
   private async Task OnDarkModeChanged(bool value)
