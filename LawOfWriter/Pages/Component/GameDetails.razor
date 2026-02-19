@@ -2,6 +2,8 @@
 @using LawOfWriter.Services
 @inject IDialogService DialogService
 @inject LocalDbService LocalDbService
+@inject ApiService ApiService
+@inject ISnackbar Snackbar
 
 <h3>@GameDay.GameDayDto.GameDay1.ToString("dd.MM.yyyy")</h3>
 
@@ -51,8 +53,28 @@
         
         if (result is not { Canceled: true })
         {
-            // Geänderten Datensatz lokal speichern → IsSynced = false (noch nicht zur API übertragen)
+            // 1. Lokal als unsynced speichern (Fallback falls API fehlschlägt)
             await LocalDbService.SaveGameDayActionAsUnsyncedAsync(item);
+
+            // 2. Sofort zur API übertragen
+            try
+            {
+                var ok = await ApiService.PostAsync<GameDayActionDto>("data/gameaction", item);
+                if (ok)
+                {
+                    await LocalDbService.MarkActionAsSyncedAsync(item.Id);
+                    Snackbar.Add($"✅ {item.User?.FullName} erfolgreich übertragen.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add($"⚠️ Lokal gespeichert – Übertragung fehlgeschlagen.", Severity.Warning);
+                }
+            }
+            catch
+            {
+                Snackbar.Add($"⚠️ Lokal gespeichert – Keine Verbindung zur API.", Severity.Warning);
+            }
+
             await OnActionChanged.InvokeAsync();
             StateHasChanged();
         }

@@ -83,11 +83,24 @@
     else if (_selectedGameDay is not null) {
         <MudPaper Class="pa-2 mb-3 d-flex align-center" Elevation="0"
                   Style="position: sticky; top: 0; z-index: 5;">
-            <MudButton OnClick="@BackToList" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">
+            <MudButton OnClick="@BackToListAsync" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">
                 Zurück
             </MudButton>
             <MudSpacer/>
-            <MudText Typo="Typo.subtitle2">Details</MudText>
+            @{
+                var detailGameId = _selectedGameDay!.GameDayDto.Id;
+                var detailStatus = _syncStatus.GetValueOrDefault(detailGameId);
+                var detailSynced = detailStatus.Synced;
+                var detailTotal = detailStatus.Total;
+                var detailAllSynced = detailTotal > 0 && detailSynced == detailTotal;
+                var detailColor = detailAllSynced ? Color.Success : (detailSynced > 0 ? Color.Warning : Color.Error);
+            }
+            <MudTooltip Text="@($"{detailSynced} von {detailTotal} Datensätze übertragen")">
+                <MudChip T="string" Color="@detailColor" Size="Size.Small" Variant="Variant.Filled"
+                         Icon="@(detailAllSynced ? Icons.Material.Filled.CloudDone : Icons.Material.Filled.CloudUpload)">
+                    @detailSynced / @detailTotal übertragen
+                </MudChip>
+            </MudTooltip>
         </MudPaper>
 
         <GameDetails GameDay="_selectedGameDay" OnActionChanged="@RefreshSyncStatusAsync"/>
@@ -111,9 +124,50 @@
         _showDetails = true;
     }
 
-    private void BackToList() {
+    private async Task BackToListAsync() {
+        // Noch offene unsynced Actions des aktuellen Spieltags übertragen
+        if (_selectedGameDay is not null)
+        {
+            await TransferRemainingAsync(_selectedGameDay);
+        }
         _showDetails = false;
         _selectedGameDay = null;
+    }
+
+    /// <summary>
+    /// Überträgt alle noch unsynced Actions eines Spieltags zur API (stiller Hintergrund-Sync).
+    /// </summary>
+    private async Task TransferRemainingAsync(GameApiDto gameDay) {
+        var gameId = gameDay.GameDayDto.Id;
+        var pending = (await LocalDbService.GetActionsByGameIdAsync(gameId))
+            .Where(a => !a.IsSynced).ToList();
+
+        if (pending.Count == 0) return;
+
+        var success = 0;
+        foreach (var action in pending)
+        {
+            var dto = gameDay.GameDayActionDtos.FirstOrDefault(d => d.Id == action.Id);
+            if (dto is null) continue;
+
+            try
+            {
+                var ok = await ApiService.PostAsync<GameDayActionDto>("data/gameaction", dto);
+                if (ok)
+                {
+                    await LocalDbService.MarkActionAsSyncedAsync(action.Id);
+                    success++;
+                }
+            }
+            catch { /* Offline – beim nächsten Mal */ }
+        }
+
+        if (success > 0)
+            Snackbar.Add($"✅ {success} von {pending.Count} Datensätze beim Verlassen übertragen.", Severity.Success);
+        else if (pending.Count > 0)
+            Snackbar.Add($"⚠️ {pending.Count} Datensätze noch nicht übertragen – bitte manuell synchronisieren.", Severity.Warning);
+
+        await RefreshSyncStatusAsync();
     }
 
     protected override async Task OnInitializedAsync() {
@@ -209,40 +263,19 @@
 
     private async Task TransferToApiAsync(GameApiDto gameDay) {
         var gameId = gameDay.GameDayDto.Id;
+        var pending = (await LocalDbService.GetActionsByGameIdAsync(gameId))
+            .Where(a => !a.IsSynced).ToList();
+
+        if (pending.Count == 0) {
+            Snackbar.Add("Alle Datensätze bereits übertragen.", Severity.Info);
+            return;
+        }
+
         _transferring = gameId;
         StateHasChanged();
 
         try {
-            var unsynced = await LocalDbService.GetActionsByGameIdAsync(gameId);
-            var pending = unsynced.Where(a => !a.IsSynced).ToList();
-
-            if (pending.Count == 0) {
-                Snackbar.Add("Alle Datensätze bereits übertragen.", Severity.Info);
-                return;
-            }
-
-            var success = 0;
-            foreach (var action in pending)
-            {
-                // Den originalen DTO aus dem in-memory GameDay verwenden
-                var dto = gameDay.GameDayActionDtos.FirstOrDefault(d => d.Id == action.Id);
-                if (dto is null) continue;
-
-                var ok = await ApiService.PostAsync<GameDayActionDto>("data/gameaction", dto);
-                if (ok) {
-                    await LocalDbService.MarkActionAsSyncedAsync(action.Id);
-                    success++;
-                }
-            }
-
-            if (success == pending.Count)
-                Snackbar.Add($"✅ Alle {success} Datensätze erfolgreich übertragen.", Severity.Success);
-            else
-                Snackbar.Add($"⚠️ {success} von {pending.Count} übertragen. Bitte erneut versuchen.", Severity.Warning);
-        }
-        catch (Exception ex) {
-            Console.WriteLine(ex);
-            Snackbar.Add("Fehler beim Übertragen zur API.", Severity.Error);
+            await TransferRemainingAsync(gameDay);
         }
         finally {
             _transferring = null;
