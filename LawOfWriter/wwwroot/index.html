@@ -45,26 +45,38 @@
 <script src="_content/MudBlazor/MudBlazor.min.js?v=1"></script>
 <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
 <script>
-  // Holds reference to the waiting service worker
   window._waitingServiceWorker = null;
 
-  // Called by Blazor to apply the pending update
+  // Called by Blazor to apply the pending update and reload
   window.applyServiceWorkerUpdate = function () {
     if (window._waitingServiceWorker) {
       console.log('%c⬆️ Applying SW update...', 'color: orange; font-weight: bold;');
-      window._waitingServiceWorker.postMessage({ type: 'SKIP_WAITING' });
-      window._waitingServiceWorker = null;
-      // Reload once the new SW has taken control
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        console.log('%c✅ New version activated – reloading...', 'color: green; font-weight: bold;');
+        console.log('%c✅ New version active – reloading', 'color: green; font-weight: bold;');
         location.reload();
       });
+      window._waitingServiceWorker.postMessage({ type: 'SKIP_WAITING' });
+      window._waitingServiceWorker = null;
     }
   };
 
+  // Notify Blazor that a new version is ready – retries until DotNet interop is available
+  function notifyBlazorUpdateAvailable() {
+    const tryNotify = () => {
+      if (window.DotNet) {
+        window.DotNet.invokeMethodAsync('LawOfWriter', 'OnServiceWorkerUpdateAvailable')
+          .then(() => console.log('%c✅ Blazor notified of SW update', 'color: green;'))
+          .catch(err => console.warn('SW update notification failed:', err));
+      } else {
+        setTimeout(tryNotify, 500);
+      }
+    };
+    tryNotify();
+  }
+
   function handleWaitingWorker(worker) {
-    if (window._waitingServiceWorker) return; // Already notified
-    console.log('%c🔔 New version available!', 'color: blue; font-weight: bold;');
+    if (window._waitingServiceWorker) return;
+    console.log('%c🔔 New SW version waiting!', 'color: blue; font-weight: bold;');
     window._waitingServiceWorker = worker;
     notifyBlazorUpdateAvailable();
   }
@@ -74,50 +86,37 @@
       .then(reg => {
         console.log('%c📦 Service Worker registered', 'color: gray;');
 
-        // A new SW is already waiting (page was reloaded after update downloaded)
+        // New SW already waiting (e.g. page reloaded right after a deploy)
         if (reg.waiting) {
           handleWaitingWorker(reg.waiting);
         }
 
-        // A new SW finishes installing while the page is open
+        // New SW found and installing while page is open
         reg.addEventListener('updatefound', () => {
-          console.log('%c🔍 SW update found – installing...', 'color: purple;');
+          console.log('%c🔍 SW updatefound – new worker installing...', 'color: purple;');
           const newWorker = reg.installing;
           newWorker.addEventListener('statechange', () => {
+            console.log('%c   SW state:', 'color: purple;', newWorker.state);
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
               handleWaitingWorker(newWorker);
             }
           });
         });
 
-        // *** ACTIVE POLLING – check for updates every 60 seconds ***
-        // This is critical for iPad PWAs where the browser rarely checks on its own
+        // Poll every 60 seconds – essential for iPad PWAs that stay open in background
         setInterval(() => {
-          reg.update().catch(err => console.warn('SW update check failed:', err));
+          reg.update().catch(err => console.warn('SW poll failed:', err));
         }, 60 * 1000);
 
-        // Also check when the page becomes visible again (e.g. user switches back to the app)
+        // Also check immediately when the user returns to the app
         document.addEventListener('visibilitychange', () => {
           if (!document.hidden) {
-            console.log('%c👀 App became visible – checking for updates...', 'color: gray;');
+            console.log('%c👀 App visible – polling for SW update', 'color: gray;');
             reg.update().catch(err => console.warn('SW update check failed:', err));
           }
         });
-      });
-  }
-
-  function notifyBlazorUpdateAvailable() {
-    // Blazor may not be ready yet - retry until the interop is available
-    const tryNotify = () => {
-      if (window.DotNet) {
-        window.DotNet.invokeMethodAsync('LawOfWriter', 'OnServiceWorkerUpdateAvailable')
-          .then(() => console.log('%c✅ Blazor notified of update', 'color: green;'))
-          .catch(err => console.warn('SW update notification failed:', err));
-      } else {
-        setTimeout(tryNotify, 500);
-      }
-    };
-    tryNotify();
+      })
+      .catch(err => console.error('SW registration failed:', err));
   }
 </script>
 </body>

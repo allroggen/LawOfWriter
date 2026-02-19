@@ -1,0 +1,33 @@
+<MudDialog>
+  <TitleContent>
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+      <MudIcon Icon="@Icons.Material.Filled.SystemUpdateAlt" Color="Color.Warning" />
+      <MudText Typo="Typo.h6">Update verfügbar</MudText>
+    </MudStack>
+  </TitleContent>
+  <DialogContent>
+    <MudText Typo="Typo.body1">
+      Eine neue Version der App ist verfügbar und bereit zur Installation.
+    </MudText>
+    <MudText Typo="Typo.body2" Class="mt-2" Style="opacity: 0.7;">
+      Die App wird nach der Installation kurz neu geladen.
+    </MudText>
+  </DialogContent>
+  <DialogActions>
+    <MudButton OnClick="@Cancel" Variant="Variant.Text">Später</MudButton>
+    <MudButton OnClick="@Install"
+               Variant="Variant.Filled"
+               Color="Color.Warning"
+               StartIcon="@Icons.Material.Filled.Refresh">
+      Jetzt installieren
+    </MudButton>
+  </DialogActions>
+</MudDialog>
+
+@code {
+  [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+
+  private void Cancel() => MudDialog.Cancel();
+  private void Install() => MudDialog.Close(DialogResult.Ok(true));
+}
+

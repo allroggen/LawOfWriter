@@ -2,8 +2,9 @@
 @attribute [Authorize]
 @using System.Security.Claims
 @inject Services.ThemeService ThemeService
-@inject ISnackbar Snackbar
 @inject IJSRuntime Js
+@inject IConfiguration Configuration
+@inject IDialogService DialogService
 
 <MudThemeProvider DefaultScrollbar="true" IsDarkMode="@DarkMode" Theme="_theme" />
 <MudPopoverProvider />
@@ -18,9 +19,22 @@
     @*                AriaLabel="Menü öffnen/schließen" *@
     @*                OnClick="@DrawerToggle" /> *@
 
-    <MudText Typo="Typo.h6" Class="ml-2">Law Of Writer</MudText>
+    <MudText Typo="Typo.h6" Class="ml-2">
+      Law Of Writer
+      <span style="font-size: 0.65rem; opacity: 0.6; font-weight: 400; margin-left: 4px;">v@(_appVersion)</span>
+    </MudText>
 
     <MudSpacer />
+
+    @if (_updateAvailable)
+    {
+      <MudTooltip Text="Update verfügbar – jetzt installieren">
+        <MudIconButton Icon="@Icons.Material.Filled.SystemUpdateAlt"
+                       Color="Color.Warning"
+                       OnClick="@ShowUpdateDialog"
+                       AriaLabel="Update verfügbar" />
+      </MudTooltip>
+    }
 
     <MudTooltip Text="@(DarkMode ? "Light Mode" : "Dark Mode")">
       <MudToggleIconButton Icon="@Icons.Material.Filled.DarkMode"
@@ -74,6 +88,8 @@
   bool _drawerOpen = false;
   private MudTheme _theme = new();
   public bool DarkMode { get; set; }
+  private bool _updateAvailable;
+  private string _appVersion = "–";
 
   // Static reference so the JS-invokable static method can reach this instance
   private static MainLayout? _instance;
@@ -82,35 +98,37 @@
   {
     _instance = this;
     DarkMode = await ThemeService.GetDarkModeAsync(defaultValue: false);
+    _appVersion = Configuration["AppVersion"] ?? "–";
   }
 
   /// <summary>Called from JS when a new service worker is waiting to be activated.</summary>
   [JSInvokable("OnServiceWorkerUpdateAvailable")]
   public static Task OnServiceWorkerUpdateAvailable()
   {
-    _instance?.ShowUpdateToast();
+    _instance?.MarkUpdateAvailable();
     return Task.CompletedTask;
   }
 
-  private void ShowUpdateToast()
+  private void MarkUpdateAvailable()
   {
-    Snackbar.Add<UpdateSnackbar>(new Dictionary<string, object>
-    {
-      { "OnInstall", EventCallback.Factory.Create(this, ApplyUpdateAsync) }
-    },
-    Severity.Info,
-    options =>
-    {
-      options.RequireInteraction = true;
-      options.CloseAfterNavigation = false;
-      options.SnackbarVariant = Variant.Filled;
-    });
+    _updateAvailable = true;
     InvokeAsync(StateHasChanged);
   }
 
-  private async Task ApplyUpdateAsync()
+  private async Task ShowUpdateDialog()
   {
-    await Js.InvokeVoidAsync("applyServiceWorkerUpdate");
+    var options = new DialogOptions
+    {
+      CloseOnEscapeKey = true,
+      MaxWidth = MaxWidth.ExtraSmall,
+      FullWidth = true
+    };
+    var dialog = await DialogService.ShowAsync<UpdateDialog>("Update verfügbar", options);
+    var result = await dialog.Result;
+    if (result is { Canceled: false })
+    {
+      await Js.InvokeVoidAsync("applyServiceWorkerUpdate");
+    }
   }
 
   private async Task OnDarkModeChanged(bool value)
@@ -126,7 +144,6 @@
 
   private static string GetUserLabel(ClaimsPrincipal user)
   {
-    // Prefer common claim types; fall back to identity name.
     return user.FindFirst(ClaimTypes.Email)?.Value
            ?? user.FindFirst("vorname")?.Value
            ?? user.Identity?.Name
@@ -139,12 +156,10 @@
     if (string.IsNullOrWhiteSpace(label))
       return "?";
 
-    // If label looks like an email, use the part before '@'.
     var at = label.IndexOf('@');
     if (at > 0)
       label = label[..at];
 
-    // Split on common separators.
     var parts = label
       .Replace('.', ' ')
       .Replace('_', ' ')
