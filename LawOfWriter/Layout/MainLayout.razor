@@ -188,15 +188,4 @@
   }
 }
 
-    if (parts.Length == 1)
-    {
-      var p = parts[0];
-      return (p.Length >= 2 ? p[..2] : p[..1]).ToUpperInvariant();
-    }
-
-    var first = parts[0];
-    var last = parts[^1];
-    return $"{char.ToUpperInvariant(first[0])}{char.ToUpperInvariant(last[0])}";
-  }
-}
 
