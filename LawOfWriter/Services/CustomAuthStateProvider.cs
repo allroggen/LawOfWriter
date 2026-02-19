@@ -6,7 +6,7 @@ namespace LawOfWriter.Services;
 public class CustomAuthStateProvider : AuthenticationStateProvider
 {
     private readonly AuthService _authService;
-    private ClaimsPrincipal _anonymous = new ClaimsPrincipal(new ClaimsIdentity());
+    private readonly ClaimsPrincipal _anonymous = new(new ClaimsIdentity());
 
     public CustomAuthStateProvider(AuthService authService)
     {

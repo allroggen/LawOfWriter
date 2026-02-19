@@ -1,5 +1,6 @@
 <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
     <MudIconButton Icon="@Icons.Material.Filled.Remove"
+                   Style="touch-action: manipulation;"
                    OnClick="Decrease" />
 
     <MudNumericField T="decimal?"
@@ -11,6 +12,7 @@
                      Style="max-width:120px" />
 
     <MudIconButton Icon="@Icons.Material.Filled.Add"
+                   Style="touch-action: manipulation;"
                    OnClick="Increase" />
 </MudStack>
 

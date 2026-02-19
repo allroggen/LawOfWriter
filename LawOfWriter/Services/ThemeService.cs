@@ -2,21 +2,15 @@ using Microsoft.JSInterop;
 
 namespace LawOfWriter.Services;
 
-public class ThemeService
+public class ThemeService(IJSRuntime js)
 {
     private const string DarkModeKey = "lawofwriter:darkmode";
-    private readonly IJSRuntime _js;
-
-    public ThemeService(IJSRuntime js)
-    {
-        _js = js;
-    }
 
     public async Task<bool> GetDarkModeAsync(bool defaultValue = false)
     {
         try
         {
-            var value = await _js.InvokeAsync<string?>("localStorage.getItem", DarkModeKey);
+            var value = await js.InvokeAsync<string?>("localStorage.getItem", DarkModeKey);
             if (string.IsNullOrWhiteSpace(value))
                 return defaultValue;
 
@@ -35,7 +29,7 @@ public class ThemeService
     {
         try
         {
-            await _js.InvokeVoidAsync("localStorage.setItem", DarkModeKey, isDark.ToString().ToLowerInvariant());
+            await js.InvokeVoidAsync("localStorage.setItem", DarkModeKey, isDark.ToString().ToLowerInvariant());
         }
         catch
         {
