@@ -143,32 +143,22 @@
 
         if (confirmed is not true) return;
 
-        // Lokale Actions dieses Spieltags löschen
+        // Lokale Actions und GameDay löschen
         var gameId = gameDay.GameDayDto.Id;
         var localActions = await LocalDbService.GetActionsByGameIdAsync(gameId);
         foreach (var a in localActions)
             await LocalDbService.DeleteGameDayActionAsync(a.Id);
         await LocalDbService.DeleteGameDayAsync(gameId);
 
-        // Frisch vom Server laden
-        Snackbar.Add($"Spieltag {date} wird vom Server wiederhergestellt…", Severity.Info);
-        var serverGame = await ApiService.GetAsync<GameApiDto>($"data/game/{gameId}");
-        if (serverGame is not null)
-        {
-            await LocalDbService.SaveGameApiAsync(serverGame, isSynced: false);
-            var idx = _gameDays!.FindIndex(g => g.GameDayDto.Id == gameId);
-            if (idx >= 0) _gameDays[idx] = serverGame;
-            _selectedGameDay = serverGame;
-        }
-        else
-        {
-            // Fallback: komplette Liste neu laden
-            await LoadGameData();
-            _showDetails = false;
-            _selectedGameDay = null;
-        }
+        // Zurück zur Liste + Ladezustand anzeigen während Server-Daten kommen
+        _showDetails = false;
+        _selectedGameDay = null;
+        _gameDays = null;
+        IsLoading = true;
+        StateHasChanged();
 
-        await RefreshSyncStatusAsync();
+        Snackbar.Add($"Spieltag {date} wird vom Server wiederhergestellt…", Severity.Info);
+        await LoadGameData();
         Snackbar.Add($"✅ Spieltag {date} wiederhergestellt.", Severity.Success);
     }
 
@@ -233,6 +223,7 @@
                 IsLoading = false;
                 await RefreshSyncStatusAsync();
             }
+            // Wenn keine lokalen Daten → IsLoading bleibt true bis API antwortet
 
             // ── Schritt 2: API im Hintergrund abfragen ────────────────────────
             var serverData = await ApiService.GetAsync<List<GameApiDto>>("data/game");
