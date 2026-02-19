@@ -43,11 +43,12 @@
 
 <!-- Important: Increment the version parameter whenever you update MudBlazor to prevent caching issues -->
 <script src="_content/MudBlazor/MudBlazor.min.js?v=1"></script>
-<script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+<!-- autostart="false" so we can intercept SW registration before Blazor starts -->
+<script src="_framework/blazor.webassembly#[.{fingerprint}].js" autostart="false"></script>
 <script>
   window._waitingServiceWorker = null;
 
-  // Called by Blazor to apply the pending update and reload
+  // Called by Blazor (via JSInterop) to apply the update and reload
   window.applyServiceWorkerUpdate = function () {
     if (window._waitingServiceWorker) {
       console.log('%c⬆️ Applying SW update...', 'color: orange; font-weight: bold;');
@@ -60,7 +61,6 @@
     }
   };
 
-  // Notify Blazor that a new version is ready – retries until DotNet interop is available
   function notifyBlazorUpdateAvailable() {
     const tryNotify = () => {
       if (window.DotNet) {
@@ -68,10 +68,42 @@
           .then(() => console.log('%c✅ Blazor notified of SW update', 'color: green;'))
           .catch(err => console.warn('SW update notification failed:', err));
       } else {
+        console.log('%c⏳ DotNet not ready, retrying...', 'color: gray;');
         setTimeout(tryNotify, 500);
       }
     };
     tryNotify();
+  }
+
+  function attachUpdateListeners(reg) {
+    // New SW already waiting (e.g. page opened right after a deploy)
+    if (reg.waiting) {
+      handleWaitingWorker(reg.waiting);
+    }
+
+    reg.addEventListener('updatefound', () => {
+      console.log('%c🔍 SW updatefound – new worker installing...', 'color: purple;');
+      const newWorker = reg.installing;
+      newWorker.addEventListener('statechange', () => {
+        console.log('%c   SW state:', 'color: purple;', newWorker.state);
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          handleWaitingWorker(newWorker);
+        }
+      });
+    });
+
+    // Poll every 60 s – critical for iPad PWAs staying open in background
+    setInterval(() => {
+      reg.update().catch(err => console.warn('SW poll failed:', err));
+    }, 60 * 1000);
+
+    // Check immediately when user returns to the app
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        console.log('%c👀 App visible – polling for SW update', 'color: gray;');
+        reg.update().catch(err => console.warn('SW update check failed:', err));
+      }
+    });
   }
 
   function handleWaitingWorker(worker) {
@@ -81,43 +113,23 @@
     notifyBlazorUpdateAvailable();
   }
 
+  // Intercept navigator.serviceWorker.register BEFORE Blazor calls it
+  // This ensures we get the registration object no matter which SW file Blazor uses
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
-      .then(reg => {
-        console.log('%c📦 Service Worker registered', 'color: gray;');
-
-        // New SW already waiting (e.g. page reloaded right after a deploy)
-        if (reg.waiting) {
-          handleWaitingWorker(reg.waiting);
-        }
-
-        // New SW found and installing while page is open
-        reg.addEventListener('updatefound', () => {
-          console.log('%c🔍 SW updatefound – new worker installing...', 'color: purple;');
-          const newWorker = reg.installing;
-          newWorker.addEventListener('statechange', () => {
-            console.log('%c   SW state:', 'color: purple;', newWorker.state);
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              handleWaitingWorker(newWorker);
-            }
-          });
-        });
-
-        // Poll every 60 seconds – essential for iPad PWAs that stay open in background
-        setInterval(() => {
-          reg.update().catch(err => console.warn('SW poll failed:', err));
-        }, 60 * 1000);
-
-        // Also check immediately when the user returns to the app
-        document.addEventListener('visibilitychange', () => {
-          if (!document.hidden) {
-            console.log('%c👀 App visible – polling for SW update', 'color: gray;');
-            reg.update().catch(err => console.warn('SW update check failed:', err));
-          }
-        });
-      })
-      .catch(err => console.error('SW registration failed:', err));
+    const _originalRegister = navigator.serviceWorker.register.bind(navigator.serviceWorker);
+    navigator.serviceWorker.register = function (scriptURL, options) {
+      console.log('%c📦 SW register intercepted:', 'color: gray;', scriptURL);
+      const mergedOptions = { ...(options || {}), updateViaCache: 'none' };
+      return _originalRegister(scriptURL, mergedOptions).then(reg => {
+        console.log('%c📦 SW registered:', 'color: gray;', scriptURL);
+        attachUpdateListeners(reg);
+        return reg;
+      });
+    };
   }
+
+  // Start Blazor manually – it will now call our intercepted register()
+  Blazor.start();
 </script>
 </body>
 
