@@ -51,38 +51,67 @@
   // Called by Blazor to apply the pending update
   window.applyServiceWorkerUpdate = function () {
     if (window._waitingServiceWorker) {
+      console.log('%c⬆️ Applying SW update...', 'color: orange; font-weight: bold;');
       window._waitingServiceWorker.postMessage({ type: 'SKIP_WAITING' });
       window._waitingServiceWorker = null;
       // Reload once the new SW has taken control
-      navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        console.log('%c✅ New version activated – reloading...', 'color: green; font-weight: bold;');
+        location.reload();
+      });
     }
   };
 
-  navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
-    .then(reg => {
-      // A new SW is already waiting (page was reloaded after update downloaded)
-      if (reg.waiting) {
-        window._waitingServiceWorker = reg.waiting;
-        notifyBlazorUpdateAvailable();
-      }
+  function handleWaitingWorker(worker) {
+    if (window._waitingServiceWorker) return; // Already notified
+    console.log('%c🔔 New version available!', 'color: blue; font-weight: bold;');
+    window._waitingServiceWorker = worker;
+    notifyBlazorUpdateAvailable();
+  }
 
-      // A new SW finishes installing while the page is open
-      reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            window._waitingServiceWorker = newWorker;
-            notifyBlazorUpdateAvailable();
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
+      .then(reg => {
+        console.log('%c📦 Service Worker registered', 'color: gray;');
+
+        // A new SW is already waiting (page was reloaded after update downloaded)
+        if (reg.waiting) {
+          handleWaitingWorker(reg.waiting);
+        }
+
+        // A new SW finishes installing while the page is open
+        reg.addEventListener('updatefound', () => {
+          console.log('%c🔍 SW update found – installing...', 'color: purple;');
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              handleWaitingWorker(newWorker);
+            }
+          });
+        });
+
+        // *** ACTIVE POLLING – check for updates every 60 seconds ***
+        // This is critical for iPad PWAs where the browser rarely checks on its own
+        setInterval(() => {
+          reg.update().catch(err => console.warn('SW update check failed:', err));
+        }, 60 * 1000);
+
+        // Also check when the page becomes visible again (e.g. user switches back to the app)
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden) {
+            console.log('%c👀 App became visible – checking for updates...', 'color: gray;');
+            reg.update().catch(err => console.warn('SW update check failed:', err));
           }
         });
       });
-    });
+  }
 
   function notifyBlazorUpdateAvailable() {
     // Blazor may not be ready yet - retry until the interop is available
     const tryNotify = () => {
       if (window.DotNet) {
         window.DotNet.invokeMethodAsync('LawOfWriter', 'OnServiceWorkerUpdateAvailable')
+          .then(() => console.log('%c✅ Blazor notified of update', 'color: green;'))
           .catch(err => console.warn('SW update notification failed:', err));
       } else {
         setTimeout(tryNotify, 500);
