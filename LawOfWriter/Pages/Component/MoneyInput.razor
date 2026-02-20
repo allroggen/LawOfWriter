@@ -1,128 +1,37 @@
-@* Geldbetrags-Eingabe: Zeigt den aktuellen Betrag an und addiert/subtrahiert Eingabe *@
+@* Geldbetrags-Anzeige – öffnet Zahlenpad-Popup beim Klick *@
+@inject IDialogService DialogService
 
-<div class="d-flex flex-column align-center gap-2" style="width:100%;">
-
-    @* Aktueller Gesamtbetrag *@
-    <MudText Typo="Typo.h5" Align="Align.Center"
-             Style="font-variant-numeric: tabular-nums; user-select:none;">
-        @((Value ?? 0).ToString("F2")) €
-    </MudText>
-
-    @* Eingabe-Anzeige *@
-    <MudPaper Elevation="1" Class="pa-2 d-flex align-center justify-space-between"
-              Style="width:100%; min-height:48px; border-radius:8px;">
-        <MudText Typo="Typo.h6" Style="@DisplayStyle">
-            @DisplayValue
-        </MudText>
-        <MudText Typo="Typo.body1" Style="opacity:0.6;">€</MudText>
-    </MudPaper>
-
-    @* Zahlenpad *@
-    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; width:100%;">
-
-        @foreach (var key in _keys)
-        {
-            var k = key;
-            <MudButton Variant="Variant.Outlined"
-                       Color="@GetKeyColor(k)"
-                       Style="height:56px; font-size:1.2rem; font-weight:600; border-radius:12px;"
-                       OnClick="@(() => PressKey(k))">
-                @GetKeyLabel(k)
-            </MudButton>
-        }
-
-    </div>
-
-</div>
+<MudButton Variant="Variant.Outlined"
+           Color="Color.Primary"
+           FullWidth="true"
+           Style="height:56px; font-size:1.2rem; font-weight:600; border-radius:12px; font-variant-numeric:tabular-nums; touch-action:manipulation;"
+           OnClick="OpenPad">
+    @((Value ?? 0).ToString("F2")) €
+</MudButton>
 
 @code {
     [Parameter] public decimal? Value { get; set; }
     [Parameter] public EventCallback<decimal?> ValueChanged { get; set; }
 
-    // Tasten-Layout: 7 8 9 / 4 5 6 / 1 2 3 / +/- 0 , / ← ✓
-    private readonly string[] _keys =
-    [
-        "7","8","9",
-        "4","5","6",
-        "1","2","3",
-        "+/-","0",",",
-        "⌫","✓"
-    ];
-
-    private string _input = "";
-    private bool _isNegative;
-
-    private string DisplayStyle =>
-        "font-variant-numeric: tabular-nums; letter-spacing:1px; flex:1; text-align:right; padding-right:8px; color:" +
-        (_isNegative ? "var(--mud-palette-error)" : "inherit") + ";";
-
-    private string DisplayValue
+    private async Task OpenPad()
     {
-        get
+        var parameters = new DialogParameters<MoneyInputDialog>
         {
-            var sign = _isNegative ? "-" : "+";
-            return _input.Length == 0 ? "0" : $"{sign}{_input}";
-        }
-    }
+            { x => x.CurrentValue, Value }
+        };
 
-    private void PressKey(string key)
-    {
-        switch (key)
+        var options = new DialogOptions
         {
-            case "⌫":
-                if (_input.Length > 0)
-                    _input = _input[..^1];
-                break;
+            CloseButton = true,
+            MaxWidth = MaxWidth.ExtraSmall,
+            FullWidth = true,
+            Position = DialogPosition.Center
+        };
 
-            case "+/-":
-                _isNegative = !_isNegative;
-                break;
+        var dialog = await DialogService.ShowAsync<MoneyInputDialog>("", parameters, options);
+        var result = await dialog.Result;
 
-            case ",":
-                if (!_input.Contains(',') && !_input.Contains('.'))
-                    _input += _input.Length == 0 ? "0," : ",";
-                break;
-
-            case "✓":
-                _ = Apply();
-                break;
-
-            default:
-                // Maximal 2 Dezimalstellen
-                var sepIdx = _input.IndexOfAny([',', '.']);
-                if (sepIdx >= 0 && _input.Length - sepIdx > 2) break;
-                _input += key;
-                break;
-        }
+        if (result is { Canceled: false, Data: decimal newValue })
+            await ValueChanged.InvokeAsync(newValue);
     }
-
-    private async Task Apply()
-    {
-        if (_input.Length == 0) return;
-
-        var normalized = _input.Replace(',', '.');
-        if (!decimal.TryParse(normalized,
-                System.Globalization.NumberStyles.Number,
-                System.Globalization.CultureInfo.InvariantCulture,
-                out var delta))
-            return;
-
-        if (_isNegative) delta = -delta;
-        if (delta == 0) return;
-
-        var newValue = (Value ?? 0) + delta;
-        _input = "";
-        _isNegative = false;
-        await ValueChanged.InvokeAsync(newValue);
-    }
-
-    private Color GetKeyColor(string key) => key switch
-    {
-        "✓"   => Color.Primary,
-        "⌫"   => Color.Error,
-        "+/-" => Color.Secondary,
-        _     => Color.Default
-    };
-
-    private string GetKeyLabel(string key) => key;
 }
