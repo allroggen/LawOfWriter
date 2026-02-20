@@ -1,0 +1,138 @@
+@* Popup-Zahlenpad für Geldeingabe *@
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.EuroSymbol" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">Spiele</MudText>
+        </div>
+    </TitleContent>
+
+    <DialogContent>
+        <div class="d-flex flex-column align-center gap-3" style="width:100%;">
+
+            @* Aktueller Gesamtbetrag *@
+            <MudText Typo="Typo.subtitle2" Style="opacity:0.7;">Aktuell</MudText>
+            <MudText Typo="Typo.h4" Style="font-variant-numeric: tabular-nums; user-select:none;">
+                @((CurrentValue ?? 0).ToString("F2")) €
+            </MudText>
+
+            @* Eingabe-Anzeige *@
+            <MudPaper Elevation="2" Class="pa-3 d-flex align-center justify-space-between"
+                      Style="width:100%; min-height:56px; border-radius:12px;">
+                <MudText Typo="Typo.h5" Style="@DisplayStyle">
+                    @DisplayValue
+                </MudText>
+                <MudText Typo="Typo.body1" Style="opacity:0.6; margin-left:6px;">€</MudText>
+            </MudPaper>
+
+            @* Zahlenpad *@
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; width:100%;">
+                @foreach (var key in _keys)
+                {
+                    var k = key;
+                    <MudButton Variant="Variant.Filled"
+                               Color="@GetKeyColor(k)"
+                               Style="height:64px; font-size:1.3rem; font-weight:700; border-radius:14px; touch-action:manipulation;"
+                               OnClick="@(() => PressKey(k))">
+                        @k
+                    </MudButton>
+                }
+            </div>
+
+        </div>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public decimal? CurrentValue { get; set; }
+
+    private readonly string[] _keys =
+    [
+        "7", "8", "9",
+        "4", "5", "6",
+        "1", "2", "3",
+        "+/-", "0", ",",
+        "⌫", "✓"
+    ];
+
+    private string _input = "";
+    private bool _isNegative;
+
+    private string DisplayStyle =>
+        "font-variant-numeric: tabular-nums; letter-spacing:2px; flex:1; text-align:right;" +
+        "color:" + (_isNegative ? "var(--mud-palette-error)" : "var(--mud-palette-success)") + ";";
+
+    private string DisplayValue
+    {
+        get
+        {
+            var sign = _isNegative ? "-" : "+";
+            return _input.Length == 0 ? "0" : $"{sign}{_input}";
+        }
+    }
+
+    private void PressKey(string key)
+    {
+        switch (key)
+        {
+            case "⌫":
+                if (_input.Length > 0)
+                    _input = _input[..^1];
+                break;
+
+            case "+/-":
+                _isNegative = !_isNegative;
+                break;
+
+            case ",":
+                if (!_input.Contains(',') && !_input.Contains('.'))
+                    _input += _input.Length == 0 ? "0," : ",";
+                break;
+
+            case "✓":
+                Confirm();
+                break;
+
+            default:
+                var sepIdx = _input.IndexOfAny([',', '.']);
+                if (sepIdx >= 0 && _input.Length - sepIdx > 2) break;
+                _input += key;
+                break;
+        }
+    }
+
+    private void Confirm()
+    {
+        if (_input.Length == 0)
+        {
+            MudDialog.Cancel();
+            return;
+        }
+
+        var normalized = _input.Replace(',', '.');
+        if (!decimal.TryParse(normalized,
+                System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var delta))
+        {
+            MudDialog.Cancel();
+            return;
+        }
+
+        if (_isNegative) delta = -delta;
+        var newValue = (CurrentValue ?? 0) + delta;
+        MudDialog.Close(DialogResult.Ok(newValue));
+    }
+
+    private Color GetKeyColor(string key) => key switch
+    {
+        "✓"   => Color.Primary,
+        "⌫"   => Color.Error,
+        "+/-" => Color.Secondary,
+        _     => Color.Dark
+    };
+}
+
+

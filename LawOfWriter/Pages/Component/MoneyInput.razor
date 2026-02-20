@@ -1,0 +1,37 @@
+@* Geldbetrags-Anzeige – öffnet Zahlenpad-Popup beim Klick *@
+@inject IDialogService DialogService
+
+<MudButton Variant="Variant.Outlined"
+           Color="Color.Primary"
+           FullWidth="true"
+           Style="height:56px; font-size:1.2rem; font-weight:600; border-radius:12px; font-variant-numeric:tabular-nums; touch-action:manipulation;"
+           OnClick="OpenPad">
+    @((Value ?? 0).ToString("F2")) €
+</MudButton>
+
+@code {
+    [Parameter] public decimal? Value { get; set; }
+    [Parameter] public EventCallback<decimal?> ValueChanged { get; set; }
+
+    private async Task OpenPad()
+    {
+        var parameters = new DialogParameters<MoneyInputDialog>
+        {
+            { x => x.CurrentValue, Value }
+        };
+
+        var options = new DialogOptions
+        {
+            CloseButton = true,
+            MaxWidth = MaxWidth.ExtraSmall,
+            FullWidth = true,
+            Position = DialogPosition.Center
+        };
+
+        var dialog = await DialogService.ShowAsync<MoneyInputDialog>("", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: decimal newValue })
+            await ValueChanged.InvokeAsync(newValue);
+    }
+}

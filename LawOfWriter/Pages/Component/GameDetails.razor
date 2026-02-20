@@ -17,7 +17,7 @@
         <PropertyColumn Property="x=>x.Kranz" Title="Kranz" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
         <PropertyColumn Property="x=>x.Neuner" Title="Neuner" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
         <PropertyColumn Property="x=>x.Spiele" Title="Spiele" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
-        <PropertyColumn Property="x=>x.Gesamt" Title="Gesamt" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
+        @* <PropertyColumn Property="x=>x.Gesamt" Title="Gesamt" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" /> *@
     </Columns>
 </MudDataGrid>
 
@@ -43,7 +43,7 @@
         
         var options = new DialogOptions 
         { 
-            CloseButton = true, 
+            CloseButton = false, 
             MaxWidth = MaxWidth.Medium,
             FullWidth = true 
         };
