@@ -42,6 +42,9 @@ builder.Services.AddScoped<ApiService>(sp =>
     return new ApiService(httpClient, logger);
 });
 
+// GameDayAction Service
+builder.Services.AddScoped<IGameDayActionService, GameDayActionService>();
+
 builder.Services.AddMudServices();
 
 await builder.Build().RunAsync();

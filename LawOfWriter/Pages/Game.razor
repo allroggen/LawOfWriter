@@ -3,6 +3,7 @@
 @using LawOfWriter.Services
 @using LawOfWriter.Pages.Component
 @inject ApiService ApiService
+@inject IGameDayActionService GameDayActionService
 @inject LocalDbService LocalDbService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -190,7 +191,7 @@
 
             try
             {
-                var ok = await ApiService.PostAsync<GameDayActionDto>("data/gameaction", dto);
+                var ok = await GameDayActionService.SaveGameDayActionAsync(dto);
                 if (ok)
                 {
                     await LocalDbService.MarkActionAsSyncedAsync(action.Id);

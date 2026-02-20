@@ -2,7 +2,7 @@
 @using LawOfWriter.Services
 @inject IDialogService DialogService
 @inject LocalDbService LocalDbService
-@inject ApiService ApiService
+@inject IGameDayActionService GameDayActionService
 @inject ISnackbar Snackbar
 
 <h3>@GameDay.GameDayDto.GameDay1.ToString("dd.MM.yyyy")</h3>
@@ -59,7 +59,7 @@
             // 2. Sofort zur API übertragen
             try
             {
-                var ok = await ApiService.PostAsync<GameDayActionDto>("data/gameaction", item);
+                var ok = await GameDayActionService.SaveGameDayActionAsync(item);
                 if (ok)
                 {
                     await LocalDbService.MarkActionAsSyncedAsync(item.Id);

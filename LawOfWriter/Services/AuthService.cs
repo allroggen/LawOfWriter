@@ -1,5 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
+using LawOfWriter.DTO;
 using LawOfWriter.Models;
 using Microsoft.JSInterop;
 
@@ -11,6 +13,15 @@ public class AuthService
     private readonly IJSRuntime _jsRuntime;
     private const string TokenKey = "authToken";
     private const string TokenExpiryKey = "authTokenExpiry";
+    private const string UserIdKey = "authUserId";
+    private const string UserNameKey = "authUserName";
+    private const string EmailKey = "authEmail";
+    private const string NameKey = "authName";
+    private const string VornameKey = "authVorname";
+    private const string BDayKey = "authBDay";
+    private const string NicknameKey = "authNickname";
+    private const string IsGuestKey = "authIsGuest";
+    private const string RolesKey = "authRoles";
     private const string ApiBaseUrl = "https://die.sinnnlosen.de/api";
     private const int TokenExpiryHours = 12; // Token läuft nach 12 Stunden ab
 
@@ -34,10 +45,10 @@ public class AuthService
 
             if (response.IsSuccessStatusCode)
             {
-                var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponse>();
+                var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
                 if (loginResponse != null && !string.IsNullOrEmpty(loginResponse.Token))
                 {
-                    await SetTokenAsync(loginResponse.Token);
+                    await SaveLoginResponseAsync(loginResponse);
                     return true;
                 }
             }
@@ -48,6 +59,23 @@ public class AuthService
         {
             return false;
         }
+    }
+
+    private async Task SaveLoginResponseAsync(LoginResponseDto loginResponse)
+    {
+        var expiry = DateTime.UtcNow.AddHours(TokenExpiryHours);
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", TokenKey, loginResponse.Token);
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", TokenExpiryKey, expiry.ToString("o"));
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", UserIdKey, loginResponse.Id);
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", UserNameKey, loginResponse.UserName ?? "");
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", EmailKey, loginResponse.Email ?? "");
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", NameKey, loginResponse.Name ?? "");
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", VornameKey, loginResponse.Vorname ?? "");
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", BDayKey, loginResponse.BDay?.ToString("o") ?? "");
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", NicknameKey, loginResponse.Nickname ?? "");
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", IsGuestKey, loginResponse.IsGuest.ToString());
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", RolesKey, JsonSerializer.Serialize(loginResponse.Roles));
+        SetAuthorizationHeader(loginResponse.Token);
     }
 
     public async Task<string?> GetTokenAsync()
@@ -78,6 +106,79 @@ public class AuthService
         }
     }
 
+    public async Task<string?> GetUserIdAsync()
+        => await GetStorageValueAsync(UserIdKey);
+
+    public async Task<string?> GetUserNameAsync()
+        => await GetStorageValueAsync(UserNameKey);
+
+    public async Task<string?> GetEmailAsync()
+        => await GetStorageValueAsync(EmailKey);
+
+    public async Task<string?> GetNameAsync()
+        => await GetStorageValueAsync(NameKey);
+
+    public async Task<string?> GetVornameAsync()
+        => await GetStorageValueAsync(VornameKey);
+
+    public async Task<DateTime?> GetBDayAsync()
+    {
+        var value = await GetStorageValueAsync(BDayKey);
+        if (!string.IsNullOrEmpty(value) && DateTime.TryParse(value, out var bDay))
+            return bDay;
+        return null;
+    }
+
+    public async Task<string?> GetNicknameAsync()
+        => await GetStorageValueAsync(NicknameKey);
+
+    public async Task<bool> GetIsGuestAsync()
+    {
+        var value = await GetStorageValueAsync(IsGuestKey);
+        return bool.TryParse(value, out var isGuest) && isGuest;
+    }
+
+    public async Task<IList<string>> GetRolesAsync()
+    {
+        var value = await GetStorageValueAsync(RolesKey);
+        if (!string.IsNullOrEmpty(value))
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<List<string>>(value) ?? new List<string>();
+            }
+            catch
+            {
+                return new List<string>();
+            }
+        }
+        return new List<string>();
+    }
+
+    /// <summary>
+    /// Gibt alle gespeicherten User-Infos als LoginResponseDto zurück.
+    /// </summary>
+    public async Task<LoginResponseDto?> GetCurrentUserAsync()
+    {
+        var token = await GetTokenAsync();
+        if (string.IsNullOrEmpty(token))
+            return null;
+
+        return new LoginResponseDto
+        {
+            Token = token,
+            Id = await GetUserIdAsync() ?? "",
+            UserName = await GetUserNameAsync(),
+            Email = await GetEmailAsync(),
+            Name = await GetNameAsync(),
+            Vorname = await GetVornameAsync(),
+            BDay = await GetBDayAsync(),
+            Nickname = await GetNicknameAsync(),
+            IsGuest = await GetIsGuestAsync(),
+            Roles = await GetRolesAsync()
+        };
+    }
+
     public async Task SetTokenAsync(string token)
     {
         var expiry = DateTime.UtcNow.AddHours(TokenExpiryHours);
@@ -90,6 +191,15 @@ public class AuthService
     {
         await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", TokenKey);
         await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", TokenExpiryKey);
+        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", UserIdKey);
+        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", UserNameKey);
+        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", EmailKey);
+        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", NameKey);
+        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", VornameKey);
+        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", BDayKey);
+        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", NicknameKey);
+        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", IsGuestKey);
+        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", RolesKey);
         _httpClient.DefaultRequestHeaders.Authorization = null;
     }
 
@@ -127,5 +237,18 @@ public class AuthService
     {
         var token = await GetTokenAsync();
         return !string.IsNullOrEmpty(token);
+    }
+
+    private async Task<string?> GetStorageValueAsync(string key)
+    {
+        try
+        {
+            var value = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", key);
+            return string.IsNullOrEmpty(value) ? null : value;
+        }
+        catch
+        {
+            return null;
+        }
     }
 }
