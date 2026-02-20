@@ -7,6 +7,7 @@
 @inject LocalDbService LocalDbService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject AuthService AuthService
 @attribute [Authorize]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
@@ -34,14 +35,20 @@
                         var synced = status.Synced;
                         var allSynced = total > 0 && synced == total;
                         var badgeColor = allSynced ? Color.Success : (synced > 0 ? Color.Warning : Color.Error);
+                        var lockedByOther = IsLockedByOther(gameId);
 
                         <MudItem xs="12" sm="6" md="4" lg="3">
                             <MudCard Elevation="1" Class="h-100">
                                 <MudCardHeader>
                                     <CardHeaderContent>
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary">
-                                            @item.GameDayDto.GameDay1.ToString("dd.MM.yyyy")
-                                        </MudText>
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                            @if (lockedByOther) {
+                                                <MudIcon Icon="@Icons.Material.Filled.Lock" Color="Color.Error" Size="Size.Small" />
+                                            }
+                                            <MudText Typo="Typo.body2" Color="@(lockedByOther ? Color.Error : Color.Secondary)">
+                                                @item.GameDayDto.GameDay1.ToString("dd.MM.yyyy")
+                                            </MudText>
+                                        </MudStack>
                                     </CardHeaderContent>
                                     <CardHeaderActions>
                                         @if (total > 0) {
@@ -55,25 +62,36 @@
                                 </MudCardHeader>
 
                                 <MudCardActions Class="pa-3 pt-0 d-flex gap-2">
-                                    <MudButton FullWidth="true"
-                                               Variant="Variant.Filled"
-                                               Color="Color.Primary"
-                                               OnClick="@(() => ShowDetails(item))">
-                                        Öffnen
-                                    </MudButton>
-                                    <MudTooltip Text="@(allSynced ? "Alle bereits übertragen" : "Änderungen zur API übertragen")">
+                                    @if (lockedByOther) {
                                         <MudButton FullWidth="true"
                                                    Variant="Variant.Outlined"
-                                                   Color="@(allSynced ? Color.Success : Color.Secondary)"
-                                                   Disabled="@(_transferring == gameId)"
-                                                   StartIcon="@(allSynced ? Icons.Material.Filled.CloudDone : Icons.Material.Filled.CloudUpload)"
-                                                   OnClick="@(() => TransferToApiAsync(item))">
-                                            @if (_transferring == gameId) {
-                                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1"/>
-                                            }
-                                            Übertragen
+                                                   Color="Color.Warning"
+                                                   StartIcon="@Icons.Material.Filled.PersonSearch"
+                                                   OnClick="@(() => ShowLockedByUserAsync(gameId))">
+                                            Wer schreibt?
                                         </MudButton>
-                                    </MudTooltip>
+                                    }
+                                    else {
+                                        <MudButton FullWidth="true"
+                                                   Variant="Variant.Filled"
+                                                   Color="Color.Primary"
+                                                   OnClick="@(() => ShowDetails(item))">
+                                            Öffnen
+                                        </MudButton>
+                                        <MudTooltip Text="@(allSynced ? "Alle bereits übertragen" : "Änderungen zur API übertragen")">
+                                            <MudButton FullWidth="true"
+                                                       Variant="Variant.Outlined"
+                                                       Color="@(allSynced ? Color.Success : Color.Secondary)"
+                                                       Disabled="@(_transferring == gameId)"
+                                                       StartIcon="@(allSynced ? Icons.Material.Filled.CloudDone : Icons.Material.Filled.CloudUpload)"
+                                                       OnClick="@(() => TransferToApiAsync(item))">
+                                                @if (_transferring == gameId) {
+                                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1"/>
+                                                }
+                                                Übertragen
+                                            </MudButton>
+                                        </MudTooltip>
+                                    }
                                 </MudCardActions>
                             </MudCard>
                         </MudItem>
@@ -127,7 +145,35 @@
     private Dictionary<int, (int Total, int Synced)> _syncStatus = new();
     private int? _transferring = null;
 
-    private void ShowDetails(GameApiDto gameDay) {
+    // gameId → Lock-Status (ob ein anderer Schreiber eingetragen ist)
+    private Dictionary<int, LockGameResponseDto> _lockStatus = new();
+    private string? _currentUserId;
+
+    private async Task ShowDetails(GameApiDto gameDay) {
+        // Prüfe ob ein anderer Schreiber bereits eingetragen ist
+        try {
+            var userId = await AuthService.GetUserIdAsync();
+            if (string.IsNullOrEmpty(userId)) return;
+
+            var lockResponse = await ApiService.PostAsync<LockGameDto, LockGameResponseDto>(
+                "data/checkgame",
+                new LockGameDto { GameId = gameDay.GameDayDto.Id, UserId = userId });
+
+            if (lockResponse is { IsLocked: true } && lockResponse.UserId != userId) {
+                var since = lockResponse.LockedSince?.ToString("dd.MM.yyyy HH:mm") ?? "unbekannt";
+                await DialogService.ShowMessageBox(
+                    title: "Spieltag gesperrt",
+                    message: $"Ein anderer Schreiber bearbeitet diesen Spieltag bereits seit {since}.",
+                    yesText: "OK",
+                    options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
+                return;
+            }
+        }
+        catch {
+            // Bei Verbindungsfehler trotzdem öffnen (Offline-Modus)
+            Snackbar.Add("⚠️ Lock-Prüfung fehlgeschlagen – Offline-Modus.", Severity.Warning);
+        }
+
         _selectedGameDay = gameDay;
         _showDetails = true;
     }
@@ -210,7 +256,9 @@
     }
 
     protected override async Task OnInitializedAsync() {
+        _currentUserId = await AuthService.GetUserIdAsync();
         await LoadGameData();
+        await CheckAllLockStatusAsync();
     }
 
     private async Task LoadGameData() {
@@ -320,6 +368,59 @@
         finally {
             _transferring = null;
             await RefreshSyncStatusAsync();
+        }
+    }
+
+    /// <summary>
+    /// Prüft den Lock-Status für alle geladenen Spieltage.
+    /// </summary>
+    private async Task CheckAllLockStatusAsync() {
+        if (_gameDays is null || string.IsNullOrEmpty(_currentUserId)) return;
+
+        foreach (var game in _gameDays) {
+            try {
+                var response = await ApiService.PostAsync<LockGameDto, LockGameResponseDto>(
+                    "data/checkgame",
+                    new LockGameDto { GameId = game.GameDayDto.Id, UserId = _currentUserId });
+
+                if (response is not null)
+                    _lockStatus[game.GameDayDto.Id] = response;
+            }
+            catch {
+                // Offline – kein Lock-Status verfügbar
+            }
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Prüft ob ein Spieltag von einem anderen Benutzer gesperrt ist.
+    /// </summary>
+    private bool IsLockedByOther(int gameId) {
+        return _lockStatus.TryGetValue(gameId, out var status)
+               && status.IsLocked
+               && status.UserId != _currentUserId;
+    }
+
+    /// <summary>
+    /// Fragt den Benutzernamen des Schreibers ab und zeigt ihn in einem Dialog an.
+    /// </summary>
+    private async Task ShowLockedByUserAsync(int gameId) {
+        if (!_lockStatus.TryGetValue(gameId, out var status) || status.UserId is null) return;
+
+        try {
+            var userName = await ApiService.PostStringAsync(
+                "data/getusername", status.UserId) ?? "Unbekannt";
+
+            var since = status.LockedSince?.ToString("dd.MM.yyyy HH:mm") ?? "unbekannt";
+            await DialogService.ShowMessageBox(
+                title: "Spieltag gesperrt",
+                message: $"Schreiber: {userName}\nSeit: {since}",
+                yesText: "OK",
+                options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
+        }
+        catch (Exception e) {
+            Snackbar.Add($"⚠️ Benutzername konnte nicht abgefragt werden. ({e.Message})", Severity.Warning);
         }
     }
 }

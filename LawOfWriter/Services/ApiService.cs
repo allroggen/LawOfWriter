@@ -87,6 +87,40 @@ public class ApiService
     }
 
     /// <summary>
+    /// POST Request der die Response als Plain-Text-String zurückgibt (kein JSON-Deserialisieren).
+    /// </summary>
+    public async Task<string?> PostStringAsync<TRequest>(string endpoint, TRequest data)
+    {
+        _logger.LogInformation("POST String Request: {Endpoint} (RequestType: {RequestType})", 
+            endpoint, typeof(TRequest).Name);
+        
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync(endpoint, data);
+            
+            _logger.LogDebug("POST String Response Status: {StatusCode} for {Endpoint}", 
+                response.StatusCode, endpoint);
+            
+            response.EnsureSuccessStatusCode();
+            
+            var result = await response.Content.ReadAsStringAsync();
+            _logger.LogInformation("POST String Request successful: {Endpoint}", endpoint);
+            return result;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP Error during POST String request to {Endpoint}. Status: {StatusCode}", 
+                endpoint, ex.StatusCode);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during POST String request to {Endpoint}", endpoint);
+            throw;
+        }
+    }
+
+    /// <summary>
     /// POST Request zu einem API Endpoint ohne Response Body
     /// </summary>
     /// <typeparam name="TRequest">Der Typ des Request Body</typeparam>
