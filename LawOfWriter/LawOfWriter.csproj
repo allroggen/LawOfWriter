@@ -27,9 +27,18 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Content Include="wwwroot\favicon.png" CopyToPublishDirectory="Always" />
-      <Content Include="wwwroot\icon-192.png" CopyToPublishDirectory="Always" />
-      <Content Include="wwwroot\icon-512.png" CopyToPublishDirectory="Always" />
+      <Content Include="wwwroot\favicon.png" CopyToPublishDirectory="Always">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="wwwroot\icon-192.png" CopyToPublishDirectory="Always">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="wwwroot\icon-512.png" CopyToPublishDirectory="Always">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Update="wwwroot\favicon.ico">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
 
 </Project>

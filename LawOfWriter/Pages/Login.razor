@@ -22,6 +22,7 @@
                           Required="true"
                           RequiredError="E-Mail ist erforderlich"
                           InputType="InputType.Email"
+                          Immediate="true"
                           Class="mb-4"/>
             
             <MudTextField @bind-Value="_password" 
@@ -30,6 +31,7 @@
                           Required="true"
                           RequiredError="Passwort ist erforderlich"
                           InputType="InputType.Password"
+                          Immediate="true"
                           Class="mb-4"/>
             
             <MudButton Variant="Variant.Filled" 
@@ -63,9 +65,9 @@
         _errorMessage = "";
         _isLoading = true;
 
-        if (string.IsNullOrWhiteSpace(_email) || string.IsNullOrWhiteSpace(_password))
+        await _form!.Validate();
+        if (!_form.IsValid)
         {
-            _errorMessage = "Bitte füllen Sie alle Felder aus.";
             _isLoading = false;
             return;
         }
