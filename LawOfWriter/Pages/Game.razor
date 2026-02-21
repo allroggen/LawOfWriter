@@ -164,33 +164,51 @@
 
     // gameId → Lock-Status (ob ein anderer Schreiber eingetragen ist)
     private Dictionary<int, LockGameResponseDto> _lockStatus = new();
+    // Snapshot: Zustand VOR unserem eigenen Lock-Setzen (true = wir waren schon Schreiber beim Laden)
+    private HashSet<int> _alreadyOwnWriter = new();
     private string? _currentUserId;
     private bool _lockCheckLoading = true;
     private bool _refreshing;
 
     private async Task ShowDetails(GameApiDto gameDay) {
-        // Prüfe ob ein anderer Schreiber bereits eingetragen ist
-        try {
-            var userId = await AuthService.GetUserIdAsync();
-            if (string.IsNullOrEmpty(userId)) return;
+        var gameId = gameDay.GameDayDto.Id;
 
-            var lockResponse = await ApiService.PostAsync<LockGameDto, LockGameResponseDto>(
-                "data/checkgame",
-                new LockGameDto { GameId = gameDay.GameDayDto.Id, UserId = userId });
+        // _lockStatus wurde mit echter UserId befüllt → IsLockedByOther bereits korrekt
+        // _alreadyOwnWriter = beim Laden war kein anderer Schreiber eingetragen (wir werden es jetzt erst)
+        // Wenn wir beim Laden bereits selbst Schreiber waren → direkt öffnen
 
-            if (lockResponse is { IsLocked: true } && lockResponse.UserId != userId) {
-                var since = lockResponse.LockedSince?.ToString("dd.MM.yyyy HH:mm") ?? "unbekannt";
-                await DialogService.ShowMessageBox(
-                    title: "Spieltag gesperrt",
-                    message: $"Ein anderer Schreiber bearbeitet diesen Spieltag bereits seit {since}.",
-                    yesText: "OK",
-                    options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
-                return;
-            }
+        if (IsLockedByOther(gameId)) {
+            // Sollte eigentlich nicht passieren (Button wird ausgeblendet), aber als Sicherheit
+            _lockStatus.TryGetValue(gameId, out var s);
+            var since = s?.LockedSince?.ToString("dd.MM.yyyy HH:mm") ?? "unbekannt";
+            await DialogService.ShowMessageBox(
+                title: "Spieltag gesperrt",
+                message: $"Ein anderer Schreiber bearbeitet diesen Spieltag bereits seit {since}.",
+                yesText: "OK",
+                options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
+            return;
         }
-        catch {
-            // Bei Verbindungsfehler trotzdem öffnen (Offline-Modus)
-            Snackbar.Add("⚠️ Lock-Prüfung fehlgeschlagen – Offline-Modus.", Severity.Warning);
+
+        // War beim Laden noch kein Schreiber eingetragen → nachfragen
+        if (!_alreadyOwnWriter.Contains(gameId)) {
+            var confirmed = await DialogService.ShowMessageBox(
+                title: "Als Schreiber eintragen?",
+                message: "Du wirst als Schreiber für diesen Spieltag eingetragen. Möchtest du fortfahren?",
+                yesText: "Ja",
+                cancelText: "Nein",
+                options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
+
+            if (confirmed is not true) return;
+
+            // Lock jetzt tatsächlich setzen
+            try {
+                await ApiService.PostAsync<LockGameDto, LockGameResponseDto>(
+                    "data/checkgame",
+                    new LockGameDto { GameId = gameId, UserId = _currentUserId! });
+                // Ab jetzt sind wir Schreiber → künftige Klicks ohne Dialog
+                _alreadyOwnWriter.Add(gameId);
+            }
+            catch { /* Offline – trotzdem öffnen */ }
         }
 
         _selectedGameDay = gameDay;
@@ -416,6 +434,7 @@
         }
 
         _lockCheckLoading = true;
+        _alreadyOwnWriter.Clear();
 
         foreach (var game in _gameDays) {
             try {
@@ -423,8 +442,12 @@
                     "data/checkgame",
                     new LockGameDto { GameId = game.GameDayDto.Id, UserId = _currentUserId });
 
-                if (response is not null)
+                if (response is not null) {
                     _lockStatus[game.GameDayDto.Id] = response;
+                    // Wenn wir selbst bereits Schreiber sind → merken, kein Dialog nötig
+                    if (response.IsLocked && response.UserId == _currentUserId)
+                        _alreadyOwnWriter.Add(game.GameDayDto.Id);
+                }
             }
             catch {
                 // Offline – kein Lock-Status verfügbar
