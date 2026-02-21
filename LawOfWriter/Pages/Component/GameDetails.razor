@@ -5,35 +5,120 @@
 @inject IGameDayActionService GameDayActionService
 @inject ISnackbar Snackbar
 
-<h3>@GameDay.GameDayDto.GameDay1.ToString("dd.MM.yyyy")</h3>
+<div class="d-flex align-center justify-space-between mb-3">
+    <MudText Typo="Typo.h6" Class="ma-0">
+        <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+        @GameDay.GameDayDto.GameDay1.ToString("dddd, dd. MMMM yyyy", new System.Globalization.CultureInfo("de-DE"))
+    </MudText>
+    <MudButtonGroup OverrideStyles="false" Size="Size.Small" Variant="Variant.Outlined">
+        <MudButton StartIcon="@Icons.Material.Filled.TableRows"
+                   Color="@(!_compactView ? Color.Primary : Color.Default)"
+                   Variant="@(!_compactView ? Variant.Filled : Variant.Outlined)"
+                   OnClick="() => _compactView = false">
+            Tabelle
+        </MudButton>
+        <MudButton StartIcon="@Icons.Material.Filled.GridView"
+                   Color="@(_compactView ? Color.Primary : Color.Default)"
+                   Variant="@(_compactView ? Variant.Filled : Variant.Outlined)"
+                   OnClick="() => _compactView = true">
+            Schnell
+        </MudButton>
+    </MudButtonGroup>
+</div>
 
-<MudDataGrid T="GameDayActionDto" Items="@GameDay.GameDayActionDtos"
-            RowClick="@OnRowClick"
-            RowHover="true"
-            Dense="true">
-    <Columns>
-        <PropertyColumn Property="x => string.IsNullOrWhiteSpace(x.User!.Nickname) ? x.User.FullName : x.User.Nickname" Title="Name" />
-        <PropertyColumn Property="x=>x.Band" Title="Band" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
-        <PropertyColumn Property="x=>x.Pumpe" Title="Pumpe" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
-        <PropertyColumn Property="x=>x.Kranz" Title="Kranz" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
-        <PropertyColumn Property="x=>x.Neuner" Title="Neuner" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
-        <PropertyColumn Property="x=>x.Spiele" Title="Strafen" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
-        @* <PropertyColumn Property="x=>x.Gesamt" Title="Gesamt" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" /> *@
-    </Columns>
-</MudDataGrid>
+@if (_compactView)
+{
+    <div class="compact-grid">
+        @foreach (var item in GameDay.GameDayActionDtos)
+        {
+            var displayName = string.IsNullOrWhiteSpace(item.User?.Nickname) ? item.User?.FullName : item.User?.Nickname;
+            var initials = GetInitials(displayName);
+            
+            <MudPaper Class="compact-card mud-ripple" Elevation="2" @onclick="() => OpenEditDialog(item)">
+                <MudAvatar Color="Color.Primary" Size="Size.Large" Class="mb-2">
+                    @initials
+                </MudAvatar>
+                <MudText Typo="Typo.subtitle1" Align="Align.Center" Style="font-weight: 600; line-height: 1.2;">
+                    @displayName
+                </MudText>
+                @if (item.Gesamt.HasValue && item.Gesamt.Value != 0)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled" Class="mt-1">
+                        @item.Gesamt.Value.ToString("0.00") €
+                    </MudChip>
+                }
+            </MudPaper>
+        }
+    </div>
+}
+else
+{
+    <MudDataGrid T="GameDayActionDto" Items="@GameDay.GameDayActionDtos"
+                RowClick="@OnRowClick"
+                RowHover="true">
+        <Columns>
+            <PropertyColumn Property="x => string.IsNullOrWhiteSpace(x.User!.Nickname) ? x.User.FullName : x.User.Nickname" Title="Name" />
+            <PropertyColumn Property="x=>x.Band" Title="Band" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
+            <PropertyColumn Property="x=>x.Pumpe" Title="Pumpe" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
+            <PropertyColumn Property="x=>x.Kranz" Title="Kranz" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
+            <PropertyColumn Property="x=>x.Neuner" Title="Neuner" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
+            <PropertyColumn Property="x=>x.Spiele" Title="Strafen" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
+            @* <PropertyColumn Property="x=>x.Gesamt" Title="Gesamt" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" /> *@
+        </Columns>
+    </MudDataGrid>
+}
 
 <style>
-    /* Smartphone: nur FullName anzeigen */
     @@media (max-width: 600px) {
         .hide-on-mobile {
             display: none !important;
         }
+    }
+
+    .compact-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 12px;
+    }
+
+    .compact-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 16px 8px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        min-height: 120px;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+    }
+
+    .compact-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .compact-card:active {
+        transform: scale(0.97);
     }
 </style>
 
 @code {
     [Parameter] public required GameApiDto GameDay { get; set; }
     [Parameter] public EventCallback OnActionChanged { get; set; }
+    
+    private bool _compactView;
+
+    private static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
+            : name[..1].ToUpper();
+    }
     
     private async Task OpenEditDialog(GameDayActionDto item)
     {
