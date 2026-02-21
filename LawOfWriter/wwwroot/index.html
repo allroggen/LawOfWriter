@@ -70,10 +70,25 @@
   };
 
   // Called by Blazor (JSInterop) to apply the update and reload
-  window.applyServiceWorkerUpdate = function () {
-    const sw = window._waitingServiceWorker;
+  window.applyServiceWorkerUpdate = async function () {
+    console.log('%c⬆️ applyServiceWorkerUpdate called', 'color: orange; font-weight: bold;');
+
+    // Try to find a waiting SW – either from our cached reference or live from the registration
+    let sw = window._waitingServiceWorker;
+    if (!sw) {
+      console.log('%c⚠️ No cached waiting SW, checking registration...', 'color: orange;');
+      try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg && reg.waiting) {
+          sw = reg.waiting;
+          console.log('%c✅ Found waiting SW from registration', 'color: green;');
+        }
+      } catch (e) {
+        console.warn('Could not get SW registration:', e);
+      }
+    }
+
     if (sw) {
-      console.log('%c⬆️ Applying SW update...', 'color: orange; font-weight: bold;');
       // Guard: only add the controllerchange listener once
       if (!window._controllerChangeListenerAdded) {
         window._controllerChangeListenerAdded = true;
@@ -84,9 +99,15 @@
         });
       }
       window._waitingServiceWorker = null;
+      console.log('%c📨 Sending SKIP_WAITING to SW', 'color: orange;');
       sw.postMessage({ type: 'SKIP_WAITING' });
+      // Fallback reload in case controllerchange never fires (e.g. only one SW)
+      setTimeout(() => {
+        console.warn('controllerchange did not fire – reloading as fallback');
+        location.reload();
+      }, 3000);
     } else {
-      console.warn('applyServiceWorkerUpdate called but no waiting SW found – reloading anyway');
+      console.warn('applyServiceWorkerUpdate: no waiting SW found – reloading anyway');
       location.reload();
     }
   };

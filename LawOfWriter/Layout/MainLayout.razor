@@ -29,12 +29,10 @@
 
     @if (_updateAvailable)
     {
-      <MudTooltip Text="Update verfügbar – jetzt installieren">
-        <MudIconButton Icon="@Icons.Material.Filled.SystemUpdateAlt"
-                       Color="Color.Warning"
-                       OnClick="@ShowUpdateDialog"
-                       AriaLabel="Update verfügbar" />
-      </MudTooltip>
+      <MudIconButton Icon="@Icons.Material.Filled.SystemUpdateAlt"
+                     Color="Color.Warning"
+                     OnClick="@ShowUpdateDialog"
+                     AriaLabel="Update verfügbar – jetzt installieren" />
     }
 
     <MudTooltip Text="@(DarkMode ? "Light Mode" : "Dark Mode")">
@@ -118,6 +116,7 @@
 
   private async Task ShowUpdateDialog()
   {
+    Console.WriteLine("[Update] ShowUpdateDialog called");
     var options = new DialogOptions
     {
       CloseOnEscapeKey = true,
@@ -126,8 +125,10 @@
     };
     var dialog = await DialogService.ShowAsync<UpdateDialog>("Update verfügbar", options);
     var result = await dialog.Result;
+    Console.WriteLine($"[Update] Dialog result: Canceled={result?.Canceled}, Data={result?.Data}");
     if (result is { Canceled: false })
     {
+      Console.WriteLine("[Update] Calling applyServiceWorkerUpdate");
       await Js.InvokeVoidAsync("applyServiceWorkerUpdate");
     }
   }
