@@ -9,7 +9,8 @@
 
 <MudDataGrid T="GameDayActionDto" Items="@GameDay.GameDayActionDtos"
             RowClick="@OnRowClick"
-            RowHover="true">
+            RowHover="true"
+            Dense="true">
     <Columns>
         <PropertyColumn Property="x => string.IsNullOrWhiteSpace(x.User!.Nickname) ? x.User.FullName : x.User.Nickname" Title="Name" />
         <PropertyColumn Property="x=>x.Band" Title="Band" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
