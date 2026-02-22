@@ -45,20 +45,24 @@
                            Color="Color.Inherit" />
     </MudTooltip>
 
-    <AuthorizeView>
+    <AuthorizeView Context="authContext">
       <Authorized>
         <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
-          <ActivatorContent Context="context1">
-            <MudTooltip Text="@GetUserLabel(context.User)">
-              <MudIconButton Color="Color.Inherit" AriaLabel="Account-Menü">
-                <MudAvatar Size="Size.Medium" Color="Color.Primary" Variant="Variant.Filled">
-                  @GetUserInitials(context.User)
-                </MudAvatar>
-              </MudIconButton>
-            </MudTooltip>
+          <ActivatorContent>
+            <MudIconButton Size="Size.Medium"
+                           Style="padding: 0;"
+                           title="@GetUserLabel(authContext.User)"
+                           OnClick="@context.OpenAsync">
+              <MudAvatar Size="Size.Medium"
+                         Color="Color.Primary"
+                         Variant="Variant.Filled"
+                         Style="cursor: pointer; pointer-events: none;">
+                @GetUserInitials(authContext.User)
+              </MudAvatar>
+            </MudIconButton>
           </ActivatorContent>
           <ChildContent>
-            <MudText Class="px-4 pt-3" Typo="Typo.subtitle2">@GetUserLabel(context.User)</MudText>
+            <MudText Class="px-4 pt-3" Typo="Typo.subtitle2">@GetUserLabel(authContext.User)</MudText>
             <MudDivider Class="my-2" />
             <MudMenuItem Href="/game" Icon="@Icons.Material.Filled.SportsEsports">Spiele</MudMenuItem>
             @* <MudMenuItem Href="/losung" Icon="@Icons.Material.Filled.AccessTime">Verlosung</MudMenuItem> *@

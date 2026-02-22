@@ -2,6 +2,7 @@
 @using LawOfWriter.Services
 @using LawOfWriter.Models
 @using Microsoft.AspNetCore.Components.Authorization
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 @inject AuthService AuthService
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthStateProvider
@@ -76,12 +77,12 @@
 
         if (success)
         {
+            NavigationManager.NavigateTo("/game");
+            
             if (AuthStateProvider is CustomAuthStateProvider customAuthStateProvider)
             {
                 customAuthStateProvider.NotifyUserAuthentication();
             }
-            
-            NavigationManager.NavigateTo("/game");
         }
         else
         {

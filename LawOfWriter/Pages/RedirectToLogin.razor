@@ -3,6 +3,10 @@
 @code {
     protected override void OnInitialized()
     {
-        Navigation.NavigateTo("/", forceLoad: false);
+        var uri = new Uri(Navigation.Uri);
+        if (uri.AbsolutePath != "/")
+        {
+            Navigation.NavigateTo("/", forceLoad: false);
+        }
     }
 }
