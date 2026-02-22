@@ -146,7 +146,7 @@
             </MudTooltip>
         </MudPaper>
 
-        <GameDetails GameDay="_selectedGameDay" OnActionChanged="@RefreshSyncStatusAsync"/>
+        <GameDetails GameDay="_selectedGameDay" OnActionChanged="@RefreshSelectedGameDayAsync"/>
     }
 
 </MudContainer>
@@ -400,6 +400,41 @@
             _syncStatus[g.GameDayDto.Id] = await LocalDbService.GetSyncStatusAsync(g.GameDayDto.Id);
         }
         await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Wird nach dem Speichern einer Action aufgerufen.
+    /// Lädt den aktuellen Spieltag neu von der API, damit Gesamt sofort aktuell ist.
+    /// </summary>
+    private async Task RefreshSelectedGameDayAsync() {
+        if (_selectedGameDay is null) return;
+
+        var gameId = _selectedGameDay.GameDayDto.Id;
+
+        try {
+            var serverData = await ApiService.GetAsync<List<GameApiDto>>("data/game");
+            var updated = serverData?.FirstOrDefault(g => g.GameDayDto.Id == gameId);
+            if (updated is not null) {
+                // Gesamt-Werte aus der Server-Antwort in die bestehenden DTOs übernehmen
+                // (damit lokale Änderungen an Band/Pumpe/etc. erhalten bleiben)
+                foreach (var serverAction in updated.GameDayActionDtos)
+                {
+                    var local = _selectedGameDay.GameDayActionDtos
+                        .FirstOrDefault(d => d.Id == serverAction.Id);
+                    if (local is not null)
+                        local.Gesamt = serverAction.Gesamt;
+                }
+
+                // In _gameDays-Liste ebenfalls synchronisieren
+                var idx = _gameDays?.FindIndex(g => g.GameDayDto.Id == gameId) ?? -1;
+                if (idx >= 0) _gameDays![idx] = _selectedGameDay;
+            }
+        }
+        catch {
+            // Offline – kein Update möglich, ignorieren
+        }
+
+        await RefreshSyncStatusAsync();
     }
 
     private async Task TransferToApiAsync(GameApiDto gameDay) {
