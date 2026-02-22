@@ -4,13 +4,17 @@ using LawOfWriter;
 using LawOfWriter.Services;
 using MudBlazor.Services;
 using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.Extensions.Logging;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
-// Enable browser console logging
+// Enable browser console logging + Seq central logging
 builder.Logging.SetMinimumLevel(LogLevel.Debug);
 builder.Logging.AddFilter("Microsoft", LogLevel.Information);
+builder.Logging.AddSeq(
+    seqUrl: "https://logs.lichtii.de",
+    apiKey: "stAubsOwvfqe7Cyag3C8",
+    minimumLevel: LogLevel.Information
+);
 
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");

@@ -181,7 +181,7 @@
             // Sollte eigentlich nicht passieren (Button wird ausgeblendet), aber als Sicherheit
             _lockStatus.TryGetValue(gameId, out var s);
             var since = s?.LockedSince?.ToString("dd.MM.yyyy HH:mm") ?? "unbekannt";
-            await DialogService.ShowMessageBox(
+            await DialogService.ShowMessageBoxAsync(
                 title: "Spieltag gesperrt",
                 message: $"Ein anderer Schreiber bearbeitet diesen Spieltag bereits seit {since}.",
                 yesText: "OK",
@@ -191,7 +191,7 @@
 
         // War beim Laden noch kein Schreiber eingetragen → nachfragen
         if (!_alreadyOwnWriter.Contains(gameId)) {
-            var confirmed = await DialogService.ShowMessageBox(
+            var confirmed = await DialogService.ShowMessageBoxAsync(
                 title: "Als Schreiber eintragen?",
                 message: "Du wirst als Schreiber für diesen Spieltag eingetragen. Möchtest du fortfahren?",
                 yesText: "Ja",
@@ -217,7 +217,7 @@
 
     private async Task ConfirmResetGameDayAsync(GameApiDto gameDay) {
         var date = gameDay.GameDayDto.GameDay1.ToString("dd.MM.yyyy");
-        var confirmed = await DialogService.ShowMessageBox(
+        var confirmed = await DialogService.ShowMessageBoxAsync(
             title: $"Spieltag {date} zurücksetzen",
             message: $"Alle lokalen Änderungen für den {date} werden verworfen und die Originaldaten vom Server wiederhergestellt. Nicht übertragene Änderungen gehen verloren.",
             yesText: "Zurücksetzen",
@@ -478,7 +478,7 @@
                 "data/getusername", status.UserId) ?? "Unbekannt";
 
             var since = status.LockedSince?.ToString("dd.MM.yyyy HH:mm") ?? "unbekannt";
-            await DialogService.ShowMessageBox(
+            await DialogService.ShowMessageBoxAsync(
                 title: "Spieltag gesperrt",
                 message: $"Schreiber: {userName}\nSeit: {since}",
                 yesText: "OK",
