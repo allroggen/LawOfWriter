@@ -33,11 +33,41 @@
         {
             var displayName = string.IsNullOrWhiteSpace(item.User?.Nickname) ? item.User?.FullName : item.User?.Nickname;
             var initials = GetInitials(displayName);
+            var userImage = item.User?.Iban; // Bild aus der Datenbank
             
             <MudPaper Class="compact-card mud-ripple" Elevation="2" @onclick="() => OpenEditDialog(item)">
-                <MudAvatar Color="Color.Primary" Size="Size.Large" Class="mb-2">
-                    @initials
-                </MudAvatar>
+                
+                @if (!string.IsNullOrWhiteSpace(userImage))
+                {
+                    @* Bild vorhanden - als Avatar anzeigen *@
+                    @if (userImage.StartsWith("data:image"))
+                    {
+                        @* Bereits als Data-URL gespeichert *@
+                        <MudAvatar Size="Size.Large" Class="mb-2 user-avatar">
+                            <MudImage Src="@userImage" Alt="@displayName" />
+                        </MudAvatar>
+                    }
+                    else if (IsBase64String(userImage))
+                    {
+                        @* Reiner Base64-String - Data-URL erstellen *@
+                        <MudAvatar Size="Size.Large" Class="mb-2 user-avatar">
+                            <MudImage Src="@($"data:image/png;base64,{userImage}")" Alt="@displayName" />
+                        </MudAvatar>
+                    }
+                    else
+                    {
+                        @* URL zu einem Bild *@
+                        <MudAvatar Image="@userImage" Size="Size.Large" Class="mb-2 user-avatar" />
+                    }
+                }
+                else
+                {
+                    @* Kein Bild - Initialen anzeigen *@
+                    <MudAvatar Color="Color.Primary" Size="Size.Large" Class="mb-2">
+                        @initials
+                    </MudAvatar>
+                }
+                
                 <MudText Typo="Typo.subtitle1" Align="Align.Center" Style="font-weight: 600; line-height: 1.2;">
                     @displayName
                 </MudText>
@@ -63,7 +93,6 @@ else
             <PropertyColumn Property="x=>x.Kranz" Title="Kranz" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
             <PropertyColumn Property="x=>x.Neuner" Title="Neuner" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
             <PropertyColumn Property="x=>x.Spiele" Title="Strafen" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
-            @* <PropertyColumn Property="x=>x.Gesamt" Title="Gesamt" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" /> *@
         </Columns>
     </MudDataGrid>
 }
@@ -103,6 +132,15 @@ else
     .compact-card:active {
         transform: scale(0.97);
     }
+    
+    /* Bild im Avatar richtig darstellen */
+    .user-avatar img,
+    .user-avatar .mud-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+    }
 </style>
 
 @code {
@@ -118,6 +156,24 @@ else
         return parts.Length >= 2
             ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
             : name[..1].ToUpper();
+    }
+    
+    private static bool IsBase64String(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        
+        // Einfache Prüfung: Base64-Strings enthalten nur bestimmte Zeichen
+        // und haben eine Länge die durch 4 teilbar ist (mit Padding)
+        try
+        {
+            if (value.Length % 4 != 0) return false;
+            Convert.FromBase64String(value);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
     
     private async Task OpenEditDialog(GameDayActionDto item)
