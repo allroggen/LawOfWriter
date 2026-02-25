@@ -475,7 +475,7 @@
             try {
                 // GET – nur lesen wer aktuell Schreiber ist, ohne selbst einen Lock zu setzen
                 var response = await ApiService.GetAsync<LockGameResponseDto>(
-                    $"data/checkgame/{game.GameDayDto.Id}");
+                    $"data/checkgames/{game.GameDayDto.Id}");
 
                 if (response is not null) {
                     _lockStatus[game.GameDayDto.Id] = response;
