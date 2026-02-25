@@ -1,23 +1,30 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
-USER $APP_UID
-WORKDIR /app
-EXPOSE 8090
-EXPOSE 8091
-
+﻿# =========================
+# Build Stage
+# =========================
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["LawOfWriter.csproj", "./"]
-RUN dotnet restore "LawOfWriter.csproj"
 
+# Projektdatei kopieren und restore
+COPY LawOfWriter.csproj ./
+RUN dotnet restore LawOfWriter.csproj
+
+# Restliche Dateien kopieren
 COPY . .
-RUN dotnet build "LawOfWriter.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet publish LawOfWriter.csproj -c Release -o /app/publish
 
-FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "LawOfWriter.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+# =========================
+# Runtime Stage (nginx)
+# =========================
+FROM nginx:alpine AS final
 
-FROM base AS final
-WORKDIR /app
-COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "LawOfWriter.dll"]
+# Default nginx config löschen
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Eigene nginx config für SPA
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Publish-Output kopieren
+COPY --from=build /app/publish/wwwroot /usr/share/nginx/html
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
