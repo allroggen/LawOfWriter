@@ -77,12 +77,11 @@
 
         if (success)
         {
-            NavigationManager.NavigateTo("/game");
-            
             if (AuthStateProvider is CustomAuthStateProvider customAuthStateProvider)
             {
                 customAuthStateProvider.NotifyUserAuthentication();
             }
+            NavigationManager.NavigateTo("/game", true); // force reload
         }
         else
         {
