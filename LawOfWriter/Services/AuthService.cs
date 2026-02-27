@@ -202,6 +202,7 @@ public class AuthService
         await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", NicknameKey);
         await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", IsGuestKey);
         await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", RolesKey);
+        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", ImageBase);
         _httpClient.DefaultRequestHeaders.Authorization = null;
     }
 

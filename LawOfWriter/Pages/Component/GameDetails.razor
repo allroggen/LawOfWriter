@@ -167,7 +167,7 @@ else
         try
         {
             if (value.Length % 4 != 0) return false;
-            Convert.FromBase64String(value);
+            var fromBase64String = Convert.FromBase64String(value);
             return true;
         }
         catch
