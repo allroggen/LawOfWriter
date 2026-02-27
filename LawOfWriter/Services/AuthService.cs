@@ -22,6 +22,7 @@ public class AuthService
     private const string NicknameKey = "authNickname";
     private const string IsGuestKey = "authIsGuest";
     private const string RolesKey = "authRoles";
+    private const string ImageBase = "imagebase";
     private const string ApiBaseUrl = "https://die.sinnnlosen.de/api";
     private const int TokenExpiryHours = 12; // Token läuft nach 12 Stunden ab
 
@@ -74,6 +75,7 @@ public class AuthService
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", BDayKey, loginResponse.BDay?.ToString("o") ?? "");
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", NicknameKey, loginResponse.Nickname ?? "");
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", IsGuestKey, loginResponse.IsGuest.ToString());
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", ImageBase, loginResponse.Bild ?? "");
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", RolesKey, JsonSerializer.Serialize(loginResponse.Roles));
         SetAuthorizationHeader(loginResponse.Token);
     }
@@ -250,5 +252,10 @@ public class AuthService
         {
             return null;
         }
+    }
+
+    public async Task<string?> GetImageBaseAsync()
+    {
+        return await GetStorageValueAsync(ImageBase);
     }
 }

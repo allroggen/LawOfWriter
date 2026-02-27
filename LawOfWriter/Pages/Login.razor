@@ -77,15 +77,17 @@
 
         if (success)
         {
+            // Erst sicherstellen, dass der State aktualisiert ist
             if (AuthStateProvider is CustomAuthStateProvider customAuthStateProvider)
             {
                 customAuthStateProvider.NotifyUserAuthentication();
             }
-            NavigationManager.NavigateTo("/game", true); // force reload
-        }
-        else
-        {
-            _errorMessage = "Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Zugangsdaten.";
+    
+            // Kurz warten, damit der State propagiert wird
+            await Task.Delay(100);
+    
+            // Dann navigieren (erstmal ohne force reload testen)
+            NavigationManager.NavigateTo("/game");
         }
 
         _isLoading = false;

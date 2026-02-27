@@ -1,10 +1,13 @@
 ﻿@inherits LayoutComponentBase
 @attribute [Authorize]
 @using System.Security.Claims
+@using LawOfWriter.Services
 @inject Services.ThemeService ThemeService
 @inject IJSRuntime Js
 @inject IConfiguration Configuration
 @inject IDialogService DialogService
+@inject AuthService AuthService
+
 @implements IAsyncDisposable
 
 <MudThemeProvider DefaultScrollbar="true" IsDarkMode="@DarkMode" Theme="_theme" />
@@ -53,12 +56,16 @@
                            Style="padding: 0;"
                            title="@GetUserLabel(authContext.User)"
                            OnClick="@context.OpenAsync">
-              <MudAvatar Size="Size.Medium"
-                         Color="Color.Primary"
-                         Variant="Variant.Filled"
-                         Style="cursor: pointer; pointer-events: none;">
-                @GetUserInitials(authContext.User)
-              </MudAvatar>
+              @if (!string.IsNullOrEmpty(_avatarSrc))
+              {
+                <MudAvatar Size="Size.Medium">
+                  <MudImage Src="@GetAvatarSrc()" Alt="Avatar" Style="width: 100%; height: 100%; object-fit: cover;" />
+                </MudAvatar>
+              }
+              else
+              {
+                <MudIcon Icon="@Icons.Material.Filled.AccountCircle" />
+              }
             </MudIconButton>
           </ActivatorContent>
           <ChildContent>
@@ -90,13 +97,14 @@
 @code {
   bool _drawerOpen = false;
   private MudTheme _theme = new();
-  public bool DarkMode { get; set; }
+  private bool DarkMode { get; set; }
   private bool _updateAvailable;
   private string _appVersion = "–";
   private DotNetObjectReference<MainLayout>? _dotNetRef;
 
   protected override async Task OnInitializedAsync()
   {
+  _avatarSrc = await AuthService.GetImageBaseAsync();
     DarkMode = await ThemeService.GetDarkModeAsync(defaultValue: false);
     _appVersion = Configuration["AppVersion"] ?? "–";
   }
@@ -190,7 +198,15 @@
     var first = parts[0];
     var last = parts[^1];
     return $"{char.ToUpperInvariant(first[0])}{char.ToUpperInvariant(last[0])}";
+    
   }
+  private string? _avatarSrc;
+
+
+
+  private string GetAvatarSrc() => !string.IsNullOrEmpty(_avatarSrc)
+    ? $"data:image/png;base64,{_avatarSrc}"
+    : "";
 }
 
 

@@ -10,6 +10,7 @@ public class LoginResponseDto
     public string? Vorname { get; set; }
     public DateTime? BDay { get; set; }
     public string? Nickname { get; set; }
+    public string? Bild { get; set; }
     public bool IsGuest { get; set; }
     public IList<string> Roles { get; set; } = new List<string>();
 }
