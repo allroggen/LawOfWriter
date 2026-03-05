@@ -34,7 +34,8 @@ builder.Services.AddScoped<ApiAuthorizationHandler>(sp =>
 {
     var authService = sp.GetRequiredService<AuthService>();
     var logger = sp.GetRequiredService<ILogger<ApiAuthorizationHandler>>();
-    return new ApiAuthorizationHandler(authService, logger);
+    var authStateProvider = sp.GetRequiredService<AuthenticationStateProvider>();
+    return new ApiAuthorizationHandler(authService, logger, authStateProvider);
 });
 
 builder.Services.AddScoped<ApiService>(sp =>

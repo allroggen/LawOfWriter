@@ -12,6 +12,7 @@ public class AuthService
     private readonly HttpClient _httpClient;
     private readonly IJSRuntime _jsRuntime;
     private const string TokenKey = "authToken";
+    private const string RefreshTokenKey = "authRefreshToken";
     private const string TokenExpiryKey = "authTokenExpiry";
     private const string UserIdKey = "authUserId";
     private const string UserNameKey = "authUserName";
@@ -24,7 +25,8 @@ public class AuthService
     private const string RolesKey = "authRoles";
     private const string ImageBase = "imagebase";
     private const string ApiBaseUrl = "https://die.sinnnlosen.de/api";
-    private const int TokenExpiryHours = 12; // Token läuft nach 12 Stunden ab
+    private const int TokenExpiryHours = 6;
+    private bool _isRefreshing = false;
 
     public AuthService(HttpClient httpClient, IJSRuntime jsRuntime)
     {
@@ -66,6 +68,7 @@ public class AuthService
     {
         var expiry = DateTime.UtcNow.AddHours(TokenExpiryHours);
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", TokenKey, loginResponse.Token);
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", RefreshTokenKey, loginResponse.RefreshToken);
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", TokenExpiryKey, expiry.ToString("o"));
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", UserIdKey, loginResponse.Id);
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", UserNameKey, loginResponse.UserName ?? "");
@@ -94,9 +97,16 @@ public class AuthService
             {
                 if (DateTime.UtcNow > expiry)
                 {
-                    // Token ist abgelaufen, entferne ihn
-                    await LogoutAsync();
-                    return null;
+                    // Versuche Refresh Token statt sofortigem Logout
+                    var refreshed = await RefreshTokenAsync();
+                    if (!refreshed)
+                    {
+                        await LogoutAsync();
+                        return null;
+                    }
+                    
+                    // Token erneut laden nach Refresh
+                    return await _jsRuntime.InvokeAsync<string>("localStorage.getItem", TokenKey);
                 }
             }
 
@@ -105,6 +115,49 @@ public class AuthService
         catch
         {
             return null;
+        }
+    }
+
+    public async Task<bool> RefreshTokenAsync()
+    {
+        if (_isRefreshing) return false;
+        
+        try
+        {
+            _isRefreshing = true;
+            var token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", TokenKey);
+            var refreshToken = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", RefreshTokenKey);
+
+            if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(refreshToken))
+                return false;
+
+            var refreshRequest = new RefreshTokenRequest
+            {
+                Token = token,
+                RefreshToken = refreshToken
+            };
+
+            var response = await _httpClient.PostAsJsonAsync($"{ApiBaseUrl}/auth/refresh", refreshRequest);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
+                if (loginResponse != null && !string.IsNullOrEmpty(loginResponse.Token))
+                {
+                    await SaveLoginResponseAsync(loginResponse);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            _isRefreshing = false;
         }
     }
 
@@ -192,6 +245,7 @@ public class AuthService
     public async Task LogoutAsync()
     {
         await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", TokenKey);
+        await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", RefreshTokenKey);
         await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", TokenExpiryKey);
         await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", UserIdKey);
         await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", UserNameKey);
