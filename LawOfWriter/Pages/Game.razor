@@ -39,7 +39,7 @@
             }
             else {
                 <MudGrid Spacing="2">
-                    @foreach (var item in _gameDays) {
+                    @foreach (var item in _gameDays.Where(g => g.GameDayDto.IsLocked != true)) {
                         var gameId = item.GameDayDto.Id;
                         var status = _syncStatus.GetValueOrDefault(gameId);
                         var total = status.Total;
