@@ -96,10 +96,19 @@
             <MudText Class="px-4 pt-3" Typo="Typo.subtitle2">@GetUserLabel(authContext.User)</MudText>
             <MudDivider Class="my-2" />
             <MudMenuItem Href="/game" Icon="@Icons.Material.Filled.SportsEsports">Spiele</MudMenuItem>
+            <MudMenuItem Href="/hilfe" Icon="@Icons.Material.Filled.HelpOutline">Hilfe</MudMenuItem>
             <MudMenuItem Href="/logout" Icon="@Icons.Material.Filled.Logout">Abmelden</MudMenuItem>
           </ChildContent>
         </MudMenu>
       </Authorized>
+      <NotAuthorized>
+        <MudTooltip Text="Hilfe">
+          <MudIconButton Icon="@Icons.Material.Filled.HelpOutline"
+                         Color="Color.Inherit"
+                         Href="/hilfe"
+                         aria-label="Hilfe öffnen" />
+        </MudTooltip>
+      </NotAuthorized>
     </AuthorizeView>
   </MudAppBar>
 

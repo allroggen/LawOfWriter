@@ -1,0 +1,317 @@
+@page "/hilfe"
+@attribute [AllowAnonymous]
+@inject IConfiguration Configuration
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4 mb-8">
+
+    <MudText Typo="Typo.h4" GutterBottom="true">
+        <MudIcon Icon="@Icons.Material.Filled.Help" Class="mr-2" Style="vertical-align: middle;" />
+        Hilfe & Anleitung
+    </MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-6">
+        Hier findest du alle Informationen zur Nutzung von <strong>Law Of Writer</strong>.
+    </MudText>
+
+    <MudExpansionPanels MultiExpansion="true" Elevation="1">
+
+        @* ── 1. Erste Schritte ── *@
+        <MudExpansionPanel>
+            <TitleContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Class="mr-3" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">Erste Schritte</MudText>
+                </div>
+            </TitleContent>
+            <ChildContent>
+                <MudText Typo="Typo.body1" Class="mb-3">
+                    Um <strong>Law Of Writer</strong> zu nutzen, brauchst du ein Benutzerkonto.
+                </MudText>
+                <MudList T="string" Dense="true">
+                    <MudListItem Icon="@Icons.Material.Filled.Login">
+                        Öffne die App und melde dich mit deiner <strong>E-Mail-Adresse</strong> und deinem <strong>Passwort</strong> an.
+                    </MudListItem>
+                    <MudListItem Icon="@Icons.Material.Filled.SportsEsports">
+                        Nach der Anmeldung wirst du automatisch zur <strong>Spieltag-Übersicht</strong> weitergeleitet.
+                    </MudListItem>
+                    <MudListItem Icon="@Icons.Material.Filled.DarkMode">
+                        Oben rechts kannst du jederzeit zwischen <strong>Dark Mode</strong> und <strong>Light Mode</strong> wechseln.
+                    </MudListItem>
+                </MudList>
+                <MudAlert Severity="Severity.Info" Class="mt-3" Variant="Variant.Outlined">
+                    Tipp: Installiere die App auf deinem iPad für die beste Erfahrung – siehe Abschnitt „App installieren".
+                </MudAlert>
+            </ChildContent>
+        </MudExpansionPanel>
+
+        @* ── 2. Spieltage verwalten ── *@
+        <MudExpansionPanel>
+            <TitleContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Class="mr-3" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">Spieltage verwalten</MudText>
+                </div>
+            </TitleContent>
+            <ChildContent>
+                <MudText Typo="Typo.body1" Class="mb-3">
+                    Auf der Hauptseite werden alle Spieltage als <strong>Karten</strong> angezeigt. Tippe auf eine Karte, um die Details zu öffnen.
+                </MudText>
+                <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2"><strong>Zwei Ansichten</strong></MudText>
+                <MudSimpleTable Dense="true" Hover="true" Bordered="true" Class="mb-3">
+                    <thead>
+                        <tr>
+                            <th>Ansicht</th>
+                            <th>Beschreibung</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><MudIcon Icon="@Icons.Material.Filled.TableChart" Size="Size.Small" Class="mr-1" /> <strong>Tabelle</strong></td>
+                            <td>Alle Spieler und ihre Aktionen in einer übersichtlichen Tabelle (DataGrid). Ideal für den Gesamtüberblick.</td>
+                        </tr>
+                        <tr>
+                            <td><MudIcon Icon="@Icons.Material.Filled.GridView" Size="Size.Small" Class="mr-1" /> <strong>Schnell</strong></td>
+                            <td>Kompakte Karten-Ansicht für schnelles Bearbeiten. Jeder Spieler hat eine eigene Karte.</td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+                <MudText Typo="Typo.body1">
+                    Tippe auf die Karte eines Spielers, um dessen Aktionen zu bearbeiten.
+                </MudText>
+            </ChildContent>
+        </MudExpansionPanel>
+
+        @* ── 3. Aktionen bearbeiten ── *@
+        <MudExpansionPanel>
+            <TitleContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-3" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">Aktionen bearbeiten</MudText>
+                </div>
+            </TitleContent>
+            <ChildContent>
+                <MudText Typo="Typo.body1" Class="mb-3">
+                    Beim Bearbeiten eines Spielers öffnet sich ein Dialog mit folgenden Aktionen:
+                </MudText>
+                <MudSimpleTable Dense="true" Hover="true" Bordered="true" Class="mb-3">
+                    <thead>
+                        <tr>
+                            <th>Aktion</th>
+                            <th>Beschreibung</th>
+                            <th>Eingabe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Band</strong></td>
+                            <td>Bandwurf – Ball trifft das Band</td>
+                            <td>Zähler (+/−)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Pumpe</strong></td>
+                            <td>Pumpenwurf – Fehlwurf in die Rinne</td>
+                            <td>Zähler (+/−)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Kranz</strong></td>
+                            <td>Kranzwurf – nur äußere Kegel getroffen</td>
+                            <td>Zähler (+/−)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Kugelfang</strong></td>
+                            <td>Kugel bleibt im Kugelfang stecken</td>
+                            <td>Zähler (+/−)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Alle Neune</strong></td>
+                            <td>Alle neun Kegel mit einem Wurf abgeräumt!</td>
+                            <td>Zähler (+/−)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Geld</strong></td>
+                            <td>Geldbetrag (z.B. für Strafen oder Einsätze)</td>
+                            <td>Betrag in €</td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                    Die Zähler verwenden <strong>+/−-Stepper</strong>, damit du schnell und fehlerfrei Werte anpassen kannst. Geldbeträge werden über ein eigenes Eingabefeld erfasst.
+                </MudAlert>
+            </ChildContent>
+        </MudExpansionPanel>
+
+        @* ── 4. Offline & Synchronisation ── *@
+        <MudExpansionPanel>
+            <TitleContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.CloudSync" Class="mr-3" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">Offline &amp; Synchronisation</MudText>
+                </div>
+            </TitleContent>
+            <ChildContent>
+                <MudText Typo="Typo.body1" Class="mb-3">
+                    <strong>Law Of Writer</strong> funktioniert auch ohne Internetverbindung. Alle Daten werden lokal in deinem Browser gespeichert (IndexedDB) und automatisch synchronisiert, sobald du wieder online bist.
+                </MudText>
+
+                <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2"><strong>Status-Icons in der AppBar</strong></MudText>
+                <MudSimpleTable Dense="true" Hover="true" Bordered="true" Class="mb-3">
+                    <thead>
+                        <tr>
+                            <th>Icon</th>
+                            <th>Farbe</th>
+                            <th>Bedeutung</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><MudIcon Icon="@Icons.Material.Filled.CloudOff" Size="Size.Small" /></td>
+                            <td><MudChip T="string" Color="Color.Error" Size="Size.Small">Rot</MudChip></td>
+                            <td>Offline – keine Verbindung zum Server</td>
+                        </tr>
+                        <tr>
+                            <td><MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Small" /></td>
+                            <td><MudChip T="string" Color="Color.Warning" Size="Size.Small">Gelb</MudChip></td>
+                            <td>Online, aber nicht synchronisierte Daten vorhanden – tippe zum Senden</td>
+                        </tr>
+                        <tr>
+                            <td><MudIcon Icon="@Icons.Material.Filled.Sync" Size="Size.Small" /></td>
+                            <td><MudChip T="string" Color="Color.Primary" Size="Size.Small">Blau</MudChip></td>
+                            <td>Synchronisierung läuft gerade</td>
+                        </tr>
+                        <tr>
+                            <td><MudIcon Icon="@Icons.Material.Filled.CloudDone" Size="Size.Small" /></td>
+                            <td><MudChip T="string" Color="Color.Success" Size="Size.Small">Grün</MudChip></td>
+                            <td>Alle Daten sind synchronisiert</td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mt-3">
+                    <strong>Manuelle Synchronisation:</strong> Tippe auf das gelbe Cloud-Icon, um ausstehende Änderungen sofort zu senden.
+                </MudAlert>
+            </ChildContent>
+        </MudExpansionPanel>
+
+        @* ── 5. Updates ── *@
+        <MudExpansionPanel>
+            <TitleContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.SystemUpdateAlt" Class="mr-3" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">Updates</MudText>
+                </div>
+            </TitleContent>
+            <ChildContent>
+                <MudText Typo="Typo.body1" Class="mb-3">
+                    Die App prüft automatisch alle 60 Sekunden und bei jedem App-Wechsel (z.B. Tab-Wechsel), ob ein Update verfügbar ist.
+                </MudText>
+                <MudList T="string" Dense="true">
+                    <MudListItem Icon="@Icons.Material.Filled.Notifications">
+                        Wenn ein Update gefunden wird, erscheint ein <strong>gelbes Update-Icon</strong> in der AppBar.
+                    </MudListItem>
+                    <MudListItem Icon="@Icons.Material.Filled.TouchApp">
+                        Tippe auf das Icon – ein Dialog fragt, ob du <strong>„Jetzt installieren"</strong> oder <strong>„Später"</strong> möchtest.
+                    </MudListItem>
+                    <MudListItem Icon="@Icons.Material.Filled.Refresh">
+                        Bei Bestätigung wird das Update installiert und die App <strong>automatisch neu geladen</strong>.
+                    </MudListItem>
+                </MudList>
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-3">
+                    Du musst nichts manuell herunterladen – alles passiert automatisch im Hintergrund.
+                </MudAlert>
+            </ChildContent>
+        </MudExpansionPanel>
+
+        @* ── 6. App installieren ── *@
+        <MudExpansionPanel>
+            <TitleContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.InstallMobile" Class="mr-3" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">App installieren</MudText>
+                </div>
+            </TitleContent>
+            <ChildContent>
+                <MudText Typo="Typo.body1" Class="mb-3">
+                    <strong>Law Of Writer</strong> kann als App auf deinem Gerät installiert werden (Progressive Web App).
+                </MudText>
+
+                <MudText Typo="Typo.subtitle1" Class="mt-3 mb-2"><strong>Auf iPad / iPhone (Safari)</strong></MudText>
+                <MudList T="string" Dense="true">
+                    <MudListItem Icon="@Icons.Material.Filled.Share">
+                        Öffne die App in Safari und tippe auf das <strong>Teilen-Symbol</strong> (Quadrat mit Pfeil nach oben).
+                    </MudListItem>
+                    <MudListItem Icon="@Icons.Material.Filled.AddBox">
+                        Scrolle nach unten und wähle <strong>„Zum Home-Bildschirm"</strong>.
+                    </MudListItem>
+                    <MudListItem Icon="@Icons.Material.Filled.Check">
+                        Bestätige mit <strong>„Hinzufügen"</strong> – die App erscheint als Icon auf deinem Homescreen.
+                    </MudListItem>
+                </MudList>
+
+                <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2"><strong>Auf Android / Chrome</strong></MudText>
+                <MudList T="string" Dense="true">
+                    <MudListItem Icon="@Icons.Material.Filled.InstallMobile">
+                        Wenn ein <strong>blaues Installations-Icon</strong> in der AppBar erscheint, tippe darauf, um die App zu installieren.
+                    </MudListItem>
+                    <MudListItem Icon="@Icons.Material.Filled.MoreVert">
+                        Alternativ: Chrome-Menü → <strong>„App installieren"</strong> oder <strong>„Zum Startbildschirm hinzufügen"</strong>.
+                    </MudListItem>
+                </MudList>
+
+                <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Class="mt-3">
+                    Als installierte App läuft Law Of Writer im Vollbild – ohne Browser-Leiste, wie eine native App.
+                </MudAlert>
+            </ChildContent>
+        </MudExpansionPanel>
+
+        @* ── 7. Tipps & Tricks ── *@
+        <MudExpansionPanel>
+            <TitleContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Lightbulb" Class="mr-3" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">Tipps &amp; Tricks</MudText>
+                </div>
+            </TitleContent>
+            <ChildContent>
+                <MudList T="string" Dense="true">
+                    <MudListItem Icon="@Icons.Material.Filled.DarkMode">
+                        <strong>Dark Mode:</strong> Tippe oben rechts auf das Sonnen-/Mond-Symbol, um zwischen hellem und dunklem Modus zu wechseln.
+                    </MudListItem>
+                    <MudListItem Icon="@Icons.Material.Filled.SwipeDown">
+                        <strong>Aktualisieren:</strong> Ziehe die Seite nach unten (Pull-to-Refresh), um die Spieltag-Daten neu zu laden.
+                    </MudListItem>
+                    <MudListItem Icon="@Icons.Material.Filled.Speed">
+                        <strong>Schnellansicht:</strong> Nutze die „Schnell"-Ansicht für besonders schnelles Erfassen während des Spiels.
+                    </MudListItem>
+                    <MudListItem Icon="@Icons.Material.Filled.Fullscreen">
+                        <strong>Vollbild:</strong> Installiere die App als PWA für eine ablenkungsfreie Vollbild-Erfahrung.
+                    </MudListItem>
+                    <MudListItem Icon="@Icons.Material.Filled.WifiOff">
+                        <strong>Kein Internet?</strong> Kein Problem! Die App speichert alles lokal und synchronisiert automatisch, wenn du wieder online bist.
+                    </MudListItem>
+                </MudList>
+            </ChildContent>
+        </MudExpansionPanel>
+
+        @* ── 8. Version ── *@
+        <MudExpansionPanel>
+            <TitleContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-3" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">Version</MudText>
+                </div>
+            </TitleContent>
+            <ChildContent>
+                <MudText Typo="Typo.body1">
+                    <strong>App:</strong> Law Of Writer
+                </MudText>
+                <MudText Typo="Typo.body1">
+                    <strong>Version:</strong> v@(Configuration["AppVersion"] ?? "–")
+                </MudText>
+                <MudText Typo="Typo.body1" Class="mt-2" Color="Color.Secondary">
+                    Blazor WebAssembly · MudBlazor · .NET 10
+                </MudText>
+            </ChildContent>
+        </MudExpansionPanel>
+
+    </MudExpansionPanels>
+
+</MudContainer>
