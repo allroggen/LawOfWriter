@@ -29,12 +29,12 @@
 @if (_compactView)
 {
     <div class="compact-grid">
-        <Virtualize Items="@GameDay.GameDayActionDtos" Context="item" OverscanCount="5">
-            @{
-                var displayName = string.IsNullOrWhiteSpace(item.User?.Nickname) ? item.User?.FullName : item.User?.Nickname;
-                var initials = GetInitials(displayName);
-                var userImage = item.User?.Iban;
-            }
+        @foreach (var item in GameDay.GameDayActionDtos)
+        {
+            var displayName = string.IsNullOrWhiteSpace(item.User?.Nickname) ? item.User?.FullName : item.User?.Nickname;
+            var initials = GetInitials(displayName);
+            var userImage = item.User?.Iban;
+
             <MudPaper Class="compact-card mud-ripple" Elevation="2" @onclick="() => OpenEditDialog(item)">
                 @if (!string.IsNullOrWhiteSpace(userImage))
                 {
@@ -58,7 +58,7 @@
                     </MudChip>
                 }
             </MudPaper>
-        </Virtualize>
+        }
     </div>
 }
 else
