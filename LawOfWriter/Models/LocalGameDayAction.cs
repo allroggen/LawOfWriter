@@ -10,6 +10,8 @@ public class LocalGameDayAction
     public int? GameId { get; set; }
     public string? UserId { get; set; }
     public string? UserFullName { get; set; }
+    public string? UserNickname { get; set; }
+    public string? UserImage { get; set; }
     public int? Pumpe { get; set; }
     public int? Band { get; set; }
     public decimal? Spiele { get; set; }

@@ -10,11 +10,19 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 // Enable browser console logging + Seq central logging
 builder.Logging.SetMinimumLevel(LogLevel.Debug);
 builder.Logging.AddFilter("Microsoft", LogLevel.Information);
-builder.Logging.AddSeq(
-    seqUrl: "https://logs.lichtii.de",
-    apiKey: "stAubsOwvfqe7Cyag3C8",
-    minimumLevel: LogLevel.Information
-);
+
+var seqUrl = builder.Configuration["Seq:Url"];
+var seqApiKey = builder.Configuration["Seq:ApiKey"];
+var seqMinLevel = Enum.TryParse<LogLevel>(builder.Configuration["Seq:MinimumLevel"], out var lvl) ? lvl : LogLevel.Information;
+
+if (!string.IsNullOrEmpty(seqUrl) && !string.IsNullOrEmpty(seqApiKey))
+{
+    builder.Logging.AddSeq(
+        seqUrl: seqUrl,
+        apiKey: seqApiKey,
+        minimumLevel: seqMinLevel
+    );
+}
 
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
@@ -49,6 +57,7 @@ builder.Services.AddScoped<ApiService>(sp =>
 
 // GameDayAction Service
 builder.Services.AddScoped<IGameDayActionService, GameDayActionService>();
+builder.Services.AddScoped<ConnectivityService>();
 
 builder.Services.AddMudServices();
 

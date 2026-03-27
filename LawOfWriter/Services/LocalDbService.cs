@@ -13,6 +13,7 @@ namespace LawOfWriter.Services;
 public class LocalDbService
 {
     private readonly IJSRuntime _js;
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -72,19 +73,28 @@ public class LocalDbService
     /// Speichert einen GameDayAction-Datensatz in der lokalen Datenbank.
     /// Falls der Datensatz bereits existiert, wird der bestehende IsSynced-Status beibehalten.
     /// Der isSynced-Parameter wird nur verwendet, wenn der Datensatz neu angelegt wird.
+    /// Writes are serialized to prevent sync-status race conditions.
     /// </summary>
     public async Task SaveGameDayActionAsync(GameDayActionDto action, bool isSynced = false)
     {
-        // Bestehenden Sync-Status aus der DB lesen und beibehalten
-        var existing = await GetGameDayActionAsync(action.Id);
-        var effectiveSynced = existing?.IsSynced ?? isSynced;
+        await _writeLock.WaitAsync();
+        try
+        {
+            // Bestehenden Sync-Status aus der DB lesen und beibehalten
+            var existing = await GetGameDayActionAsync(action.Id);
+            var effectiveSynced = existing?.IsSynced ?? isSynced;
 
-        var local = MapToLocal(action, effectiveSynced);
-        if (existing?.LastSyncedAt is not null)
-            local.LastSyncedAt = existing.LastSyncedAt;
+            var local = MapToLocal(action, effectiveSynced);
+            if (existing?.LastSyncedAt is not null)
+                local.LastSyncedAt = existing.LastSyncedAt;
 
-        var json = JsonSerializer.Serialize(local, JsonOptions);
-        await _js.InvokeAsync<bool>("localDb.saveGameDayAction", json);
+            var json = JsonSerializer.Serialize(local, JsonOptions);
+            await _js.InvokeAsync<bool>("localDb.saveGameDayAction", json);
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
     }
 
     /// <summary>
@@ -115,10 +125,18 @@ public class LocalDbService
     /// </summary>
     public async Task SaveGameDayActionAsUnsyncedAsync(GameDayActionDto action)
     {
-        var local = MapToLocal(action, isSynced: false);
-        local.LastSyncedAt = null;
-        var json = JsonSerializer.Serialize(local, JsonOptions);
-        await _js.InvokeAsync<bool>("localDb.saveGameDayAction", json);
+        await _writeLock.WaitAsync();
+        try
+        {
+            var local = MapToLocal(action, isSynced: false);
+            local.LastSyncedAt = null;
+            var json = JsonSerializer.Serialize(local, JsonOptions);
+            await _js.InvokeAsync<bool>("localDb.saveGameDayAction", json);
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
     }
 
     /// <summary>
@@ -224,6 +242,8 @@ public class LocalDbService
         GameId = dto.GameId,
         UserId = dto.UserId,
         UserFullName = dto.User?.FullName,
+        UserNickname = dto.User?.Nickname,
+        UserImage = dto.User?.Iban,
         Pumpe = dto.Pumpe,
         Band = dto.Band,
         Spiele = dto.Spiele,
@@ -248,7 +268,13 @@ public class LocalDbService
         GameId = local.GameId,
         UserId = local.UserId,
         User = local.UserFullName is not null
-            ? new AspNetUser { Id = local.UserId ?? "", Name = local.UserFullName }
+            ? new AspNetUser
+            {
+                Id = local.UserId ?? "",
+                Name = local.UserFullName,
+                Nickname = local.UserNickname,
+                Iban = local.UserImage
+            }
             : null,
         Pumpe = local.Pumpe,
         Band = local.Band,

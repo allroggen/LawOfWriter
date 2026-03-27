@@ -11,6 +11,7 @@ public class AuthService
 {
     private readonly HttpClient _httpClient;
     private readonly IJSRuntime _jsRuntime;
+    private readonly ILogger<AuthService> _logger;
     private const string TokenKey = "authToken";
     private const string RefreshTokenKey = "authRefreshToken";
     private const string TokenExpiryKey = "authTokenExpiry";
@@ -26,12 +27,13 @@ public class AuthService
     private const string ImageBase = "imagebase";
     private const string ApiBaseUrl = "https://die.sinnnlosen.de/api";
     private const int TokenExpiryHours = 6;
-    private bool _isRefreshing = false;
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
-    public AuthService(HttpClient httpClient, IJSRuntime jsRuntime)
+    public AuthService(HttpClient httpClient, IJSRuntime jsRuntime, ILogger<AuthService> logger)
     {
         _httpClient = httpClient;
         _jsRuntime = jsRuntime;
+        _logger = logger;
     }
 
     public async Task<bool> LoginAsync(string username, string password)
@@ -58,8 +60,9 @@ public class AuthService
 
             return false;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Login failed");
             return false;
         }
     }
@@ -112,20 +115,28 @@ public class AuthService
 
             return token;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to get token");
             return null;
         }
     }
 
     public async Task<bool> RefreshTokenAsync()
     {
-        if (_isRefreshing) return false;
-        
+        // If a refresh is already in progress, wait for it and return its result
+        await _refreshLock.WaitAsync();
         try
         {
-            _isRefreshing = true;
+            // Double-check: another caller may have already refreshed while we were waiting
             var token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", TokenKey);
+            var expiryString = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", TokenExpiryKey);
+            if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(expiryString)
+                && DateTime.TryParse(expiryString, out var expiry) && DateTime.UtcNow <= expiry)
+            {
+                return true; // Token already refreshed by another concurrent caller
+            }
+
             var refreshToken = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", RefreshTokenKey);
 
             if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(refreshToken))
@@ -151,13 +162,14 @@ public class AuthService
 
             return false;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Token refresh failed");
             return false;
         }
         finally
         {
-            _isRefreshing = false;
+            _refreshLock.Release();
         }
     }
 
@@ -202,8 +214,9 @@ public class AuthService
             {
                 return JsonSerializer.Deserialize<List<string>>(value) ?? new List<string>();
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "Failed to deserialize roles");
                 return new List<string>();
             }
         }
@@ -284,8 +297,9 @@ public class AuthService
 
             return null;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "TestApiCallAsync failed");
             return null;
         }
     }
@@ -303,8 +317,9 @@ public class AuthService
             var value = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", key);
             return string.IsNullOrEmpty(value) ? null : value;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to read localStorage key {Key}", key);
             return null;
         }
     }

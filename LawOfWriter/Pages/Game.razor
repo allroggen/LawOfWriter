@@ -8,7 +8,10 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject AuthService AuthService
+@inject ConnectivityService ConnectivityService
+@inject ILogger<Game> Logger
 @attribute [Authorize]
+@implements IDisposable
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
 
@@ -120,7 +123,8 @@
     else if (_selectedGameDay is not null) {
         <MudPaper Class="pa-2 mb-3 d-flex align-center" Elevation="0"
                   Style="position: sticky; top: 0; z-index: 5;">
-            <MudButton OnClick="@BackToListAsync" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack">
+            <MudButton OnClick="@BackToListAsync" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack"
+                       Size="Size.Large">
                 Zurück
             </MudButton>
             <MudSpacer/>
@@ -132,18 +136,14 @@
                 var detailAllSynced = detailTotal > 0 && detailSynced == detailTotal;
                 var detailColor = detailAllSynced ? Color.Success : (detailSynced > 0 ? Color.Warning : Color.Error);
             }
-            <MudTooltip Text="@($"{detailSynced} von {detailTotal} Datensätze übertragen")">
-                <MudChip T="string" Color="@detailColor" Size="Size.Small" Variant="Variant.Filled"
-                         Icon="@(detailAllSynced ? Icons.Material.Filled.CloudDone : Icons.Material.Filled.CloudUpload)">
-                    @detailSynced / @detailTotal übertragen
-                </MudChip>
-            </MudTooltip>
-            <MudTooltip Text="Spieltag zurücksetzen">
-                <MudIconButton Icon="@Icons.Material.Filled.RestartAlt"
-                               Color="Color.Error"
-                               Size="Size.Small"
-                               OnClick="@(() => ConfirmResetGameDayAsync(_selectedGameDay!))" />
-            </MudTooltip>
+            <MudChip T="string" Color="@detailColor" Size="Size.Medium" Variant="Variant.Filled"
+                     Icon="@(detailAllSynced ? Icons.Material.Filled.CloudDone : Icons.Material.Filled.CloudUpload)">
+                @detailSynced / @detailTotal übertragen
+            </MudChip>
+            <MudIconButton Icon="@Icons.Material.Filled.RestartAlt"
+                           Color="Color.Error"
+                           Size="Size.Medium"
+                           OnClick="@(() => ConfirmResetGameDayAsync(_selectedGameDay!))" />
         </MudPaper>
 
         <GameDetails GameDay="_selectedGameDay" OnActionChanged="@RefreshSelectedGameDayAsync"/>
@@ -208,7 +208,7 @@
                 // Ab jetzt sind wir Schreiber → künftige Klicks ohne Dialog
                 _alreadyOwnWriter.Add(gameId);
             }
-            catch { /* Offline – trotzdem öffnen */ }
+            catch (Exception ex) { Logger.LogWarning(ex, "Failed to set lock for game {GameId}", gameId); }
         }
 
         _selectedGameDay = gameDay;
@@ -281,7 +281,7 @@
                     success++;
                 }
             }
-            catch { /* Offline – beim nächsten Mal */ }
+            catch (Exception ex) { Logger.LogWarning(ex, "Failed to sync action {Id}", action.Id); }
         }
 
         if (success > 0)
@@ -293,10 +293,15 @@
     }
 
     protected override async Task OnInitializedAsync() {
+        ConnectivityService.StateChanged += OnConnectivityStateChanged;
         _currentUserId = await AuthService.GetUserIdAsync();
         await LoadGameData();
         await CheckAllLockStatusAsync();
     }
+
+    private void OnConnectivityStateChanged() => InvokeAsync(RefreshSyncStatusAsync);
+
+    public void Dispose() => ConnectivityService.StateChanged -= OnConnectivityStateChanged;
 
     private async Task RefreshAllAsync() {
         _refreshing = true;
@@ -386,8 +391,10 @@
             IsLoading = false;
             await RefreshSyncStatusAsync();
         }
-        catch (Exception e) {
-            Console.WriteLine(e);
+        catch (Exception ex) {
+            Logger.LogError(ex, "Failed to load game data");
+            if (_gameDays is null || _gameDays.Count == 0)
+                Snackbar.Add("Spieldaten konnten nicht geladen werden.", Severity.Error);
             IsLoading = false;
             await InvokeAsync(StateHasChanged);
         }
@@ -430,8 +437,8 @@
                 if (idx >= 0) _gameDays![idx] = _selectedGameDay;
             }
         }
-        catch {
-            // Offline – kein Update möglich, ignorieren
+        catch (Exception ex) {
+            Logger.LogWarning(ex, "Failed to refresh selected game day");
         }
 
         await RefreshSyncStatusAsync();
@@ -456,6 +463,7 @@
         finally {
             _transferring = null;
             await RefreshSyncStatusAsync();
+            await ConnectivityService.RefreshUnsyncedCountAsync();
         }
     }
 
@@ -484,8 +492,8 @@
                         _alreadyOwnWriter.Add(game.GameDayDto.Id);
                 }
             }
-            catch {
-                // Offline – kein Lock-Status verfügbar
+            catch (Exception ex) {
+                Logger.LogWarning(ex, "Failed to check lock for game {GameId}", game.GameDayDto.Id);
             }
         }
 
@@ -511,7 +519,6 @@
         try {
             var userName = await ApiService.PostStringAsync(
                 "data/getusername", status.UserId) ?? "Unbekannt";
-
             var since = status.LockedSince?.ToString("dd.MM.yyyy HH:mm") ?? "unbekannt";
             await DialogService.ShowMessageBoxAsync(
                 title: "Spieltag gesperrt",

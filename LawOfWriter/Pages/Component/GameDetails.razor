@@ -3,7 +3,7 @@
 @inject IDialogService DialogService
 @inject LocalDbService LocalDbService
 @inject IGameDayActionService GameDayActionService
-@inject ISnackbar Snackbar
+@inject ConnectivityService ConnectivityService
 
 <div class="d-flex align-center justify-space-between mb-3">
     <MudText Typo="Typo.h6" Class="ma-0">
@@ -29,45 +29,25 @@
 @if (_compactView)
 {
     <div class="compact-grid">
-        @foreach (var item in GameDay.GameDayActionDtos)
-        {
-            var displayName = string.IsNullOrWhiteSpace(item.User?.Nickname) ? item.User?.FullName : item.User?.Nickname;
-            var initials = GetInitials(displayName);
-            var userImage = item.User?.Iban; // Bild aus der Datenbank
-            
+        <Virtualize Items="@GameDay.GameDayActionDtos" Context="item" OverscanCount="5">
+            @{
+                var displayName = string.IsNullOrWhiteSpace(item.User?.Nickname) ? item.User?.FullName : item.User?.Nickname;
+                var initials = GetInitials(displayName);
+                var userImage = item.User?.Iban;
+            }
             <MudPaper Class="compact-card mud-ripple" Elevation="2" @onclick="() => OpenEditDialog(item)">
-                
                 @if (!string.IsNullOrWhiteSpace(userImage))
                 {
-                    @* Bild vorhanden - als Avatar anzeigen *@
-                    @if (userImage.StartsWith("data:image"))
-                    {
-                        @* Bereits als Data-URL gespeichert *@
-                        <MudAvatar Size="Size.Large" Class="mb-2 user-avatar">
-                            <MudImage Src="@userImage" Alt="@displayName" />
-                        </MudAvatar>
-                    }
-                    else if (IsBase64String(userImage))
-                    {
-                        @* Reiner Base64-String - Data-URL erstellen *@
-                        <MudAvatar Size="Size.Large" Class="mb-2 user-avatar">
-                            <MudImage Src="@($"data:image/png;base64,{userImage}")" Alt="@displayName" />
-                        </MudAvatar>
-                    }
-                    else
-                    {
-                        @* URL zu einem Bild *@
-                        <MudAvatar Image="@userImage" Size="Size.Large" Class="mb-2 user-avatar" />
-                    }
+                    <MudAvatar Size="Size.Large" Class="mb-2 user-avatar">
+                        <MudImage Src="@GetImageSrc(userImage)" Alt="@displayName" />
+                    </MudAvatar>
                 }
                 else
                 {
-                    @* Kein Bild - Initialen anzeigen *@
                     <MudAvatar Color="Color.Primary" Size="Size.Large" Class="mb-2">
                         @initials
                     </MudAvatar>
                 }
-                
                 <MudText Typo="Typo.subtitle1" Align="Align.Center" Style="font-weight: 600; line-height: 1.2;">
                     @displayName
                 </MudText>
@@ -78,16 +58,37 @@
                     </MudChip>
                 }
             </MudPaper>
-        }
+        </Virtualize>
     </div>
 }
 else
 {
     <MudDataGrid T="GameDayActionDto" Items="@GameDay.GameDayActionDtos"
                 RowClick="@OnRowClick"
-                RowHover="true">
+                Hover="true">
         <Columns>
-            <PropertyColumn Property="x => string.IsNullOrWhiteSpace(x.User!.Nickname) ? x.User.FullName : x.User.Nickname" Title="Name" />
+            <TemplateColumn T="GameDayActionDto" Title="Name" SortBy="@(x => string.IsNullOrWhiteSpace(x.User?.Nickname) ? x.User?.FullName : x.User?.Nickname)">
+                <CellTemplate>
+                    @{
+                        var u = context.Item;
+                        var name = string.IsNullOrWhiteSpace(u.User?.Nickname) ? u.User?.FullName : u.User?.Nickname;
+                        var img = u.User?.Iban;
+                    }
+                    <div class="d-flex align-center gap-2">
+                        @if (!string.IsNullOrWhiteSpace(img))
+                        {
+                            <MudAvatar Size="Size.Small" Class="user-avatar">
+                                <MudImage Src="@GetImageSrc(img)" Alt="@name" />
+                            </MudAvatar>
+                        }
+                        else
+                        {
+                            <MudAvatar Color="Color.Primary" Size="Size.Small">@GetInitials(name)</MudAvatar>
+                        }
+                        <span>@name</span>
+                    </div>
+                </CellTemplate>
+            </TemplateColumn>
             <PropertyColumn Property="x=>x.Band" Title="Band" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
             <PropertyColumn Property="x=>x.Pumpe" Title="Pumpe" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
             <PropertyColumn Property="x=>x.Kranz" Title="Kranz" HeaderClass="hide-on-mobile" CellClass="hide-on-mobile" />
@@ -161,19 +162,23 @@ else
     private static bool IsBase64String(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return false;
-        
-        // Einfache Prüfung: Base64-Strings enthalten nur bestimmte Zeichen
-        // und haben eine Länge die durch 4 teilbar ist (mit Padding)
         try
         {
             if (value.Length % 4 != 0) return false;
-            var fromBase64String = Convert.FromBase64String(value);
+            Convert.FromBase64String(value);
             return true;
         }
         catch
         {
             return false;
         }
+    }
+
+    private static string GetImageSrc(string? img)
+    {
+        if (string.IsNullOrWhiteSpace(img)) return "";
+        if (img.StartsWith("data:image")) return img;
+        return $"data:image/png;base64,{img}";
     }
     
     private async Task OpenEditDialog(GameDayActionDto item)
@@ -195,29 +200,21 @@ else
         
         if (result is not { Canceled: true })
         {
-            // 1. Lokal als unsynced speichern (Fallback falls API fehlschlägt)
             await LocalDbService.SaveGameDayActionAsUnsyncedAsync(item);
 
-            // 2. Sofort zur API übertragen
             try
             {
                 var ok = await GameDayActionService.SaveGameDayActionAsync(item);
                 if (ok)
-                {
                     await LocalDbService.MarkActionAsSyncedAsync(item.Id);
-                    Snackbar.Add($"✅ {item.User?.FullName} erfolgreich übertragen.", Severity.Success);
-                }
-                else
-                {
-                    Snackbar.Add($"⚠️ Lokal gespeichert – Übertragung fehlgeschlagen.", Severity.Warning);
-                }
             }
             catch
             {
-                Snackbar.Add($"⚠️ Lokal gespeichert – Keine Verbindung zur API.", Severity.Warning);
+                // Offline – bleibt als unsynced gespeichert
             }
 
             await OnActionChanged.InvokeAsync();
+            await ConnectivityService.RefreshUnsyncedCountAsync();
             StateHasChanged();
         }
     }

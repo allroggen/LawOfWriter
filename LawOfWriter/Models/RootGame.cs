@@ -4,9 +4,9 @@ namespace LawOfWriter.Models;
 
 public class RootGame {
     [JsonPropertyName("gameDay")]
-    public GameDay gameDay { get; set; }
+    public GameDay gameDay { get; set; } = null!;
 
     [JsonPropertyName("gameAction")]
-    public List<GameAction> gameAction { get; set; }
+    public List<GameAction> gameAction { get; set; } = [];
 }
 // Root myDeserializedClass = JsonSerializer.Deserialize<List<RootGame>>(myJsonResponse);

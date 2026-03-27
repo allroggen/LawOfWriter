@@ -10,7 +10,7 @@ public class GameAction {
     public int gameId { get; set; }
 
     [JsonPropertyName("userId")]
-    public string userId { get; set; }
+    public string? userId { get; set; }
 
     [JsonPropertyName("pumpe")]
     public int pumpe { get; set; }
@@ -28,7 +28,7 @@ public class GameAction {
     public int kranz { get; set; }
 
     [JsonPropertyName("present")]
-    public object present { get; set; }
+    public object? present { get; set; }
 
     [JsonPropertyName("isLocked")]
     public bool isLocked { get; set; }
@@ -37,13 +37,13 @@ public class GameAction {
     public DateTime created { get; set; }
 
     [JsonPropertyName("createdby")]
-    public string createdby { get; set; }
+    public string? createdby { get; set; }
 
     [JsonPropertyName("changed")]
-    public object changed { get; set; }
+    public object? changed { get; set; }
 
     [JsonPropertyName("changedby")]
-    public object changedby { get; set; }
+    public object? changedby { get; set; }
 
     [JsonPropertyName("pricelistId")]
     public int pricelistId { get; set; }

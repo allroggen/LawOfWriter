@@ -8,6 +8,7 @@
         <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
         <BlazorWebAssemblyLoadAllGlobalizationData>false</BlazorWebAssemblyLoadAllGlobalizationData>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <NoWarn>$(NoWarn);NU1504</NoWarn>
     </PropertyGroup>
     
     <PropertyGroup Condition="'$(Configuration)' == 'Debug'">

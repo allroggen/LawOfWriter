@@ -36,6 +36,16 @@ public class ApiAuthorizationHandler : DelegatingHandler
                 request.Method, request.RequestUri);
         }
 
+        // Buffer the request body before sending so it can be replayed on a 401 retry.
+        // HttpContent streams are read-once; without buffering the retry would send an empty body.
+        byte[]? bufferedBody = null;
+        string? contentType = null;
+        if (request.Content != null)
+        {
+            bufferedBody = await request.Content.ReadAsByteArrayAsync(cancellationToken);
+            contentType = request.Content.Headers.ContentType?.ToString();
+        }
+
         var response = await base.SendAsync(request, cancellationToken);
 
         if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
@@ -52,8 +62,7 @@ public class ApiAuthorizationHandler : DelegatingHandler
                 var newToken = await _authService.GetTokenAsync();
                 if (!string.IsNullOrEmpty(newToken))
                 {
-                    // Erstelle neuen Request (Request kann nur einmal gesendet werden)
-                    var newRequest = CloneRequest(request);
+                    var newRequest = CloneRequest(request, bufferedBody, contentType);
                     newRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", newToken);
                     return await base.SendAsync(newRequest, cancellationToken);
                 }
@@ -71,13 +80,19 @@ public class ApiAuthorizationHandler : DelegatingHandler
         return response;
     }
 
-    private static HttpRequestMessage CloneRequest(HttpRequestMessage request)
+    private static HttpRequestMessage CloneRequest(HttpRequestMessage request, byte[]? bufferedBody, string? contentType)
     {
         var clone = new HttpRequestMessage(request.Method, request.RequestUri)
         {
-            Content = request.Content,
             Version = request.Version
         };
+
+        if (bufferedBody != null)
+        {
+            clone.Content = new ByteArrayContent(bufferedBody);
+            if (!string.IsNullOrEmpty(contentType))
+                clone.Content.Headers.TryAddWithoutValidation("Content-Type", contentType);
+        }
 
         foreach (var prop in request.Options)
         {

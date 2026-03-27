@@ -52,11 +52,28 @@ async function onActivate(event) {
 }
 
 async function onFetch(event) {
+    // API calls: network-first, fall back to cache
+    if (event.request.url.includes('/api/')) {
+        try {
+            const response = await fetch(event.request);
+            if (response.ok) {
+                const cache = await caches.open(cacheName);
+                cache.put(event.request, response.clone());
+            }
+            return response;
+        } catch {
+            const cache = await caches.open(cacheName);
+            const cached = await cache.match(event.request);
+            return cached || new Response('{"error":"offline"}', {
+                status: 503,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+    }
+
+    // Static assets: cache-first (stale-while-revalidate for non-fingerprinted)
     let cachedResponse = null;
     if (event.request.method === 'GET') {
-        // For all navigation requests, try to serve index.html from cache,
-        // unless that request is for an offline resource.
-        // If you need some URLs to be server-rendered, edit the following check to exclude those URLs
         const shouldServeIndexHtml = event.request.mode === 'navigate'
             && !manifestUrlList.some(url => url === event.request.url);
 

@@ -31,7 +31,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
         return new AuthenticationState(user);
     }
 
-    public async void NotifyUserAuthentication()
+    public async Task NotifyUserAuthentication()
     {
         var currentUser = await _authService.GetCurrentUserAsync();
         var claims = currentUser != null ? BuildClaims(currentUser) : new List<Claim> { new(ClaimTypes.Name, "User") };

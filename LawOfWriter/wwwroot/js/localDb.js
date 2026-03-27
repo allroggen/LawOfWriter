@@ -1,4 +1,42 @@
-// IndexedDB helper for LawOfWriter offline storage
+// ─────────────────────────────────────────────────────────────────────────────
+// Network status – online/offline detection for ConnectivityService
+// ─────────────────────────────────────────────────────────────────────────────
+
+window.networkStatus = {
+    _dotNetRef: null,
+    _onlineHandler: null,
+    _offlineHandler: null,
+
+    initialize: function (dotNetRef) {
+        this._dotNetRef = dotNetRef;
+
+        this._onlineHandler = () => {
+            dotNetRef.invokeMethodAsync('OnNetworkStatusChanged', true)
+                .catch(err => console.warn('[networkStatus] online notify failed:', err));
+        };
+        this._offlineHandler = () => {
+            dotNetRef.invokeMethodAsync('OnNetworkStatusChanged', false)
+                .catch(err => console.warn('[networkStatus] offline notify failed:', err));
+        };
+
+        window.addEventListener('online', this._onlineHandler);
+        window.addEventListener('offline', this._offlineHandler);
+
+        return navigator.onLine;
+    },
+
+    dispose: function () {
+        if (this._onlineHandler) window.removeEventListener('online', this._onlineHandler);
+        if (this._offlineHandler) window.removeEventListener('offline', this._offlineHandler);
+        this._onlineHandler = null;
+        this._offlineHandler = null;
+        this._dotNetRef = null;
+    },
+
+    isOnline: function () {
+        return navigator.onLine;
+    }
+};
 const DB_NAME = 'LawOfWriterDb';
 const DB_VERSION = 1;
 const STORE_GAME_DAYS = 'gameDays';
@@ -110,9 +148,8 @@ window.localDb = {
         const db = await openDb();
         return new Promise((resolve, reject) => {
             const tx = db.transaction(STORE_GAME_ACTIONS, 'readonly');
-            const index = tx.objectStore(STORE_GAME_ACTIONS).index('isSynced');
-            const req = index.getAll(false);
-            req.onsuccess = () => resolve(JSON.stringify(req.result));
+            const req = tx.objectStore(STORE_GAME_ACTIONS).getAll();
+            req.onsuccess = () => resolve(JSON.stringify(req.result.filter(r => !r.isSynced)));
             req.onerror = () => reject(req.error);
         });
     },
@@ -127,9 +164,11 @@ window.localDb = {
                 const record = getReq.result;
                 if (record) {
                     record.isSynced = true;
-                    store.put(record);
+                    const putReq = store.put(record);
+                    putReq.onerror = () => reject(putReq.error);
                 }
             };
+            getReq.onerror = () => reject(getReq.error);
             tx.oncomplete = () => resolve(true);
             tx.onerror = () => reject(tx.error);
         });

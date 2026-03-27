@@ -43,6 +43,40 @@
   // Debug: Confirm console is working
   console.log('%c🚀 LawOfWriter App Loading...', 'color: green; font-size: 16px; font-weight: bold;');
   console.log('Browser console is active and ready for debugging');
+
+  // PWA install prompt handling
+  window._deferredInstallPrompt = null;
+  window._blazorInstallDotNetRef = null;
+
+  window.registerInstallPromptCallback = function (dotNetRef) {
+    window._blazorInstallDotNetRef = dotNetRef;
+    if (window._deferredInstallPrompt) {
+      dotNetRef.invokeMethodAsync('NotifyInstallAvailable')
+        .catch(err => console.warn('Install prompt notify failed:', err));
+    }
+  };
+
+  window.showInstallPrompt = async function () {
+    if (!window._deferredInstallPrompt) return false;
+    window._deferredInstallPrompt.prompt();
+    var result = await window._deferredInstallPrompt.userChoice;
+    window._deferredInstallPrompt = null;
+    return result.outcome === 'accepted';
+  };
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    window._deferredInstallPrompt = e;
+    if (window._blazorInstallDotNetRef) {
+      window._blazorInstallDotNetRef.invokeMethodAsync('NotifyInstallAvailable')
+        .catch(err => console.warn('Install prompt notify failed:', err));
+    }
+  });
+
+  window.addEventListener('appinstalled', function () {
+    window._deferredInstallPrompt = null;
+    console.log('%c✅ App installed!', 'color: green; font-weight: bold;');
+  });
 </script>
 
 <!-- LocalDb: IndexedDB wrapper for offline storage -->

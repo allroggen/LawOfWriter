@@ -16,17 +16,17 @@ public class GameDay {
     public DateTime created { get; set; }
 
     [JsonPropertyName("createdby")]
-    public string createdby { get; set; }
+    public string? createdby { get; set; }
 
     [JsonPropertyName("changed")]
-    public object changed { get; set; }
+    public object? changed { get; set; }
 
     [JsonPropertyName("changedby")]
-    public object changedby { get; set; }
+    public object? changedby { get; set; }
 
     [JsonPropertyName("isDummy")]
     public bool isDummy { get; set; }
 
     [JsonPropertyName("games")]
-    public List<GameAction> games { get; set; }
+    public List<GameAction> games { get; set; } = [];
 }

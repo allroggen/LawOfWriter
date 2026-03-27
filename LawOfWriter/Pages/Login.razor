@@ -80,7 +80,7 @@
             // Erst sicherstellen, dass der State aktualisiert ist
             if (AuthStateProvider is CustomAuthStateProvider customAuthStateProvider)
             {
-                customAuthStateProvider.NotifyUserAuthentication();
+                await customAuthStateProvider.NotifyUserAuthentication();
             }
     
             // Kurz warten, damit der State propagiert wird
