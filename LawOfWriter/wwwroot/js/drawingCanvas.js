@@ -14,6 +14,16 @@ window.drawingCanvas = (function () {
     let currentWidth = 2;
     let lineSpacing = 32; // px between ruled lines
 
+    // Palm rejection state
+    let activePointerId = null;
+    let penDetected = false;
+    let penTimeout = null;
+
+    // Tool mode: 'draw' or 'erase'
+    let currentMode = 'draw';
+    let eraserRadius = 16;
+    let erasedThisGesture = false; // track if eraser removed anything
+
     // ── Public API ──────────────────────────────────────────────────────────
 
     function initCanvas(canvasId, blazorRef) {
@@ -26,9 +36,14 @@ window.drawingCanvas = (function () {
         dotNetRef = blazorRef;
         strokes = [];
         isDrawing = false;
+        activePointerId = null;
+        penDetected = false;
 
-        // Prevent default touch actions (scroll, zoom) on the canvas
+        // Prevent default touch actions (scroll, zoom, text selection)
         canvas.style.touchAction = 'none';
+        canvas.style.userSelect = 'none';
+        canvas.style.webkitUserSelect = 'none';
+        canvas.style.webkitTouchCallout = 'none';
 
         // Attach pointer events
         canvas.addEventListener('pointerdown', onPointerDown);
@@ -36,6 +51,9 @@ window.drawingCanvas = (function () {
         canvas.addEventListener('pointerup', onPointerUp);
         canvas.addEventListener('pointercancel', onPointerUp);
         canvas.addEventListener('pointerleave', onPointerUp);
+
+        // Prevent context menu (long-press) on canvas
+        canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
@@ -52,10 +70,13 @@ window.drawingCanvas = (function () {
             canvas.removeEventListener('pointerleave', onPointerUp);
         }
         window.removeEventListener('resize', resizeCanvas);
+        if (penTimeout) clearTimeout(penTimeout);
         canvas = null;
         ctx = null;
         dotNetRef = null;
         strokes = [];
+        activePointerId = null;
+        penDetected = false;
     }
 
     function clearCanvas() {
@@ -76,6 +97,13 @@ window.drawingCanvas = (function () {
 
     function setLineWidth(width) {
         currentWidth = width;
+    }
+
+    function setMode(mode) {
+        currentMode = mode; // 'draw' or 'erase'
+        if (canvas) {
+            canvas.style.cursor = mode === 'erase' ? 'crosshair' : 'crosshair';
+        }
     }
 
     function getStrokeData() {
@@ -115,12 +143,84 @@ window.drawingCanvas = (function () {
         redraw();
     }
 
+    // ── Palm rejection ──────────────────────────────────────────────────────
+
+    function shouldRejectPointer(e) {
+        // If a pen is active/nearby, reject touch input (palm on screen)
+        if (e.pointerType === 'pen') {
+            penDetected = true;
+            if (penTimeout) clearTimeout(penTimeout);
+            // Keep pen priority for 500ms after last pen event
+            penTimeout = setTimeout(function () { penDetected = false; }, 500);
+            return false; // pen is always accepted
+        }
+
+        if (e.pointerType === 'touch' && penDetected) {
+            return true; // reject touch while pen is active
+        }
+
+        // If another pointer is already drawing, reject additional pointers
+        if (activePointerId !== null && e.pointerId !== activePointerId) {
+            return true;
+        }
+
+        return false; // accept (mouse or touch when no pen)
+    }
+
+    // ── Eraser logic ────────────────────────────────────────────────────────
+
+    function eraseAtPoint(x, y) {
+        const r = eraserRadius;
+        let removed = false;
+        for (let i = strokes.length - 1; i >= 0; i--) {
+            const pts = strokes[i].points;
+            for (let j = 0; j < pts.length; j++) {
+                const dx = pts[j].x - x;
+                const dy = pts[j].y - y;
+                if (dx * dx + dy * dy <= r * r) {
+                    strokes.splice(i, 1);
+                    removed = true;
+                    break;
+                }
+            }
+        }
+        if (removed) {
+            redraw();
+            // Draw eraser cursor indicator
+            drawEraserCursor(x, y);
+        }
+        return removed;
+    }
+
+    function drawEraserCursor(x, y) {
+        if (!ctx) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, eraserRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(200, 0, 0, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+    }
+
     // ── Drawing logic ───────────────────────────────────────────────────────
 
     function onPointerDown(e) {
-        // Only respond to pen and touch; also allow mouse for desktop testing
+        e.preventDefault();
+        if (shouldRejectPointer(e)) return;
+
+        activePointerId = e.pointerId;
         isDrawing = true;
         canvas.setPointerCapture(e.pointerId);
+
+        if (currentMode === 'erase') {
+            erasedThisGesture = false;
+            const pt = getPoint(e);
+            if (eraseAtPoint(pt.x, pt.y)) {
+                erasedThisGesture = true;
+            }
+            return;
+        }
 
         const point = getPoint(e);
         currentStroke = {
@@ -131,6 +231,17 @@ window.drawingCanvas = (function () {
     }
 
     function onPointerMove(e) {
+        e.preventDefault();
+        if (e.pointerId !== activePointerId) return;
+
+        if (currentMode === 'erase' && isDrawing) {
+            const pt = getPoint(e);
+            if (eraseAtPoint(pt.x, pt.y)) {
+                erasedThisGesture = true;
+            }
+            return;
+        }
+
         if (!isDrawing || !currentStroke) return;
 
         const point = getPoint(e);
@@ -149,19 +260,35 @@ window.drawingCanvas = (function () {
     }
 
     function onPointerUp(e) {
+        if (e.pointerId !== activePointerId) return;
+
+        if (currentMode === 'erase' && isDrawing) {
+            isDrawing = false;
+            activePointerId = null;
+            if (erasedThisGesture) {
+                redraw();
+                notifyChanged();
+            }
+            erasedThisGesture = false;
+            return;
+        }
+
         if (!isDrawing) return;
         isDrawing = false;
+        activePointerId = null;
 
         if (currentStroke && currentStroke.points.length > 0) {
             strokes.push(currentStroke);
-
-            // Notify Blazor of change (for auto-save)
-            if (dotNetRef) {
-                dotNetRef.invokeMethodAsync('OnCanvasChanged')
-                    .catch(err => console.warn('[drawingCanvas] OnCanvasChanged failed:', err));
-            }
+            notifyChanged();
         }
         currentStroke = null;
+    }
+
+    function notifyChanged() {
+        if (dotNetRef) {
+            dotNetRef.invokeMethodAsync('OnCanvasChanged')
+                .catch(function (err) { console.warn('[drawingCanvas] OnCanvasChanged failed:', err); });
+        }
     }
 
     function getPoint(e) {
@@ -247,6 +374,7 @@ window.drawingCanvas = (function () {
         undoStroke: undoStroke,
         setColor: setColor,
         setLineWidth: setLineWidth,
+        setMode: setMode,
         getStrokeData: getStrokeData,
         loadStrokeData: loadStrokeData,
         getStrokeCount: getStrokeCount,
