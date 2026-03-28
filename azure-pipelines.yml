@@ -1,0 +1,20 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  name: dockerPool
+
+steps:
+- script: |
+    set -e
+
+    git config --global user.email "alexander@allroggen.nl"
+    git config --global user.name "Mirror Bot"
+
+    git clone --mirror https://$(System.AccessToken)@dev.azure.com/licht85/LawOfWriter/_git/LawOfWriter
+
+    git remote add github https://$(GITHUB_PAT)@github.com/allroggen/LawOfWriter.git
+    git push --mirror github
+  displayName: 'Mirror to GitHub'
