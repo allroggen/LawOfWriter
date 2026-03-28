@@ -233,6 +233,65 @@ public class LocalDbService
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // DrinkNotes (handschriftliche Getränke-Notizen)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Speichert eine Getränke-Notiz. Bei neuen Notizen (Id == null) wird die
+    /// von IndexedDB generierte ID zurückgegeben.
+    /// </summary>
+    public async Task<int> SaveDrinkNoteAsync(DrinkNote note)
+    {
+        note.UpdatedAt = DateTime.UtcNow;
+        var json = JsonSerializer.Serialize(note, JsonOptions);
+        var id = await _js.InvokeAsync<int>("localDb.saveDrinkNote", json);
+        return id;
+    }
+
+    /// <summary>
+    /// Lädt eine einzelne Getränke-Notiz anhand der ID.
+    /// </summary>
+    public async Task<DrinkNote?> GetDrinkNoteAsync(int id)
+    {
+        var json = await _js.InvokeAsync<string?>("localDb.getDrinkNote", id);
+        return json is null ? null : JsonSerializer.Deserialize<DrinkNote>(json, JsonOptions);
+    }
+
+    /// <summary>
+    /// Gibt alle Getränke-Notizen für einen bestimmten Spieltag zurück.
+    /// </summary>
+    public async Task<List<DrinkNote>> GetDrinkNotesByGameIdAsync(int gameId)
+    {
+        var json = await _js.InvokeAsync<string>("localDb.getDrinkNotesByGameId", gameId);
+        return JsonSerializer.Deserialize<List<DrinkNote>>(json, JsonOptions) ?? [];
+    }
+
+    /// <summary>
+    /// Gibt alle lokal gespeicherten Getränke-Notizen zurück.
+    /// </summary>
+    public async Task<List<DrinkNote>> GetAllDrinkNotesAsync()
+    {
+        var json = await _js.InvokeAsync<string>("localDb.getAllDrinkNotes");
+        return JsonSerializer.Deserialize<List<DrinkNote>>(json, JsonOptions) ?? [];
+    }
+
+    /// <summary>
+    /// Löscht eine einzelne Getränke-Notiz.
+    /// </summary>
+    public async Task DeleteDrinkNoteAsync(int id)
+    {
+        await _js.InvokeAsync<bool>("localDb.deleteDrinkNote", id);
+    }
+
+    /// <summary>
+    /// Löscht alle Getränke-Notizen.
+    /// </summary>
+    public async Task ClearDrinkNotesAsync()
+    {
+        await _js.InvokeAsync<bool>("localDb.clearDrinkNotes");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Helper
     // ─────────────────────────────────────────────────────────────────────────
 

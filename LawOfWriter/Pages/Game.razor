@@ -10,6 +10,7 @@
 @inject AuthService AuthService
 @inject ConnectivityService ConnectivityService
 @inject ILogger<Game> Logger
+@inject NavigationManager Navigation
 @attribute [Authorize]
 @implements IDisposable
 
@@ -144,6 +145,10 @@
                            Color="Color.Error"
                            Size="Size.Medium"
                            OnClick="@(() => ConfirmResetGameDayAsync(_selectedGameDay!))" />
+            <MudIconButton Icon="@Icons.Material.Filled.LocalBar"
+                           Color="Color.Primary"
+                           Size="Size.Medium"
+                           OnClick="@(() => Navigation.NavigateTo($"/getraenke/{_selectedGameDay!.GameDayDto.Id}"))" />
         </MudPaper>
 
         <GameDetails GameDay="_selectedGameDay" OnActionChanged="@RefreshSelectedGameDayAsync"/>
