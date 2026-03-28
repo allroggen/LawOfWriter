@@ -57,14 +57,17 @@
 git clone <repo-url>
 cd LawOfWriter
 
-# Abhängigkeiten wiederherstellen
-dotnet restore LawOfWriter/LawOfWriter.csproj
+# Solution bauen
+dotnet build
 
-# Starten mit Hot Reload
-dotnet watch run --project LawOfWriter
+# Dev-Server starten (im Projektordner)
+cd LawOfWriter
+dotnet run
 ```
 
 Die App ist dann unter `https://localhost:5001` bzw. `http://localhost:5000` erreichbar.
+
+Für Hot Reload kann alternativ `dotnet watch run` im Projektordner verwendet werden.
 
 ---
 
@@ -180,6 +183,12 @@ Die App wird als statische Blazor WASM-Anwendung hinter nginx ausgeliefert:
 3. nginx bedient die SPA mit Fallback-Routing
 
 Die `nginx.conf` ist bereits für SPA-Routing konfiguriert (alle Routen → `index.html`).
+
+### Produktion publizieren
+
+```bash
+dotnet publish LawOfWriter/LawOfWriter.csproj -c Release -o /app/publish
+```
 
 ---
 
