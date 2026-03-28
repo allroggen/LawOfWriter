@@ -356,7 +356,10 @@
     private async Task GoBack()
     {
         await SaveCurrentPageAsync();
-        await Js.InvokeVoidAsync("history.back");
+        if (GameIdParam.HasValue)
+            Navigation.NavigateTo($"/game/{GameIdParam.Value}");
+        else
+            Navigation.NavigateTo("/game");
     }
 
     // ── Dispose ─────────────────────────────────────────────────────────────

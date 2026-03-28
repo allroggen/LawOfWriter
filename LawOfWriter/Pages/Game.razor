@@ -1,4 +1,5 @@
 @page "/game"
+@page "/game/{OpenGameId:int}"
 @using LawOfWriter.DTO
 @using LawOfWriter.Services
 @using LawOfWriter.Pages.Component
@@ -174,6 +175,8 @@
     private string? _currentUserId;
     private bool _lockCheckLoading = true;
     private bool _refreshing;
+
+    [Parameter] public int? OpenGameId { get; set; }
     
     private async Task ShowDetails(GameApiDto gameDay) {
         var gameId = gameDay.GameDayDto.Id;
@@ -302,6 +305,18 @@
         _currentUserId = await AuthService.GetUserIdAsync();
         await LoadGameData();
         await CheckAllLockStatusAsync();
+
+        // Auto-open game detail when navigated back from drink notes
+        if (OpenGameId.HasValue && _gameDays is not null)
+        {
+            var game = _gameDays.FirstOrDefault(g => g.GameDayDto.Id == OpenGameId.Value);
+            if (game is not null)
+            {
+                _alreadyOwnWriter.Add(OpenGameId.Value);
+                _selectedGameDay = game;
+                _showDetails = true;
+            }
+        }
     }
 
     private void OnConnectivityStateChanged() => InvokeAsync(RefreshSyncStatusAsync);
