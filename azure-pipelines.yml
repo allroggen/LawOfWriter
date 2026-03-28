@@ -13,8 +13,11 @@ steps:
     git config --global user.email "alexander@allroggen.nl"
     git config --global user.name "Mirror Bot"
 
+    # Repo spiegeln (bare clone)
     git clone --mirror https://$(System.AccessToken)@dev.azure.com/licht85/LawOfWriter/_git/LawOfWriter
+    cd LawOfWriter.git
 
-    git remote add github https://$(GITHUB_PAT)@github.com/allroggen/LawOfWriter.git
-    git push --mirror github
-  displayName: 'Mirror to GitHub'
+    # Direkt pushen ohne Remote-Konflikte
+    git push --mirror https://allroggen:$(GITHUB_PAT)@github.com/allroggen/LawOfWriter.git
+
+  displayName: 'Mirror Azure → GitHub'
