@@ -122,7 +122,7 @@
             }
         </MudStack>
     }
-    else if (_selectedGameDay is not null) {
+    else if (!_showDrinkNotes && _selectedGameDay is not null) {
         <MudPaper Class="pa-2 mb-3 d-flex align-center" Elevation="0"
                   Style="position: sticky; top: 0; z-index: 5;">
             <MudButton OnClick="@BackToListAsync" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack"
@@ -149,10 +149,14 @@
             <MudIconButton Icon="@Icons.Material.Filled.LocalBar"
                            Color="Color.Primary"
                            Size="Size.Medium"
-                           OnClick="@(() => Navigation.NavigateTo($"/getraenke/{_selectedGameDay!.GameDayDto.Id}"))" />
+                           OnClick="@(() => _showDrinkNotes = true)" />
         </MudPaper>
 
         <GameDetails GameDay="_selectedGameDay" OnActionChanged="@RefreshSelectedGameDayAsync"/>
+    }
+    else if (_showDrinkNotes && _selectedGameDay is not null)
+    {
+        <DrinkNotes GameIdParam="@_selectedGameDay.GameDayDto.Id" OnClose="@CloseDrinkNotes" />
     }
 
 </MudContainer>
@@ -162,6 +166,7 @@
     private List<GameApiDto>? _gameDays = new();
     private GameApiDto? _selectedGameDay;
     private bool _showDetails = false;
+    private bool _showDrinkNotes = false;
     public bool IsLoading { get; set; } = true;
 
     // gameId → (Total, Synced)
@@ -261,7 +266,13 @@
             await TransferRemainingAsync(_selectedGameDay);
         }
         _showDetails = false;
+        _showDrinkNotes = false;
         _selectedGameDay = null;
+    }
+
+    private void CloseDrinkNotes()
+    {
+        _showDrinkNotes = false;
     }
 
     /// <summary>
