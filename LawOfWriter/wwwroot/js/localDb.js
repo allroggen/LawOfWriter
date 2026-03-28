@@ -70,6 +70,10 @@ function openDb() {
 
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
+        request.onblocked = () => {
+            console.warn('[localDb] DB upgrade blocked – close other tabs and reload');
+            reject(new Error('IndexedDB upgrade blocked – close other tabs'));
+        };
     });
 }
 
@@ -226,6 +230,10 @@ window.localDb = {
     async saveDrinkNote(noteJson) {
         const db = await openDb();
         const note = JSON.parse(noteJson);
+        // For auto-increment: remove id if null/undefined so IndexedDB generates one
+        if (note.id === null || note.id === undefined) {
+            delete note.id;
+        }
         return new Promise((resolve, reject) => {
             const tx = db.transaction(STORE_DRINK_NOTES, 'readwrite');
             const req = tx.objectStore(STORE_DRINK_NOTES).put(note);

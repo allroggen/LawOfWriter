@@ -13,6 +13,21 @@
 
 <PageTitle>Getränke-Notizen</PageTitle>
 
+@if (_jsNotReady)
+{
+    <MudContainer MaxWidth="MaxWidth.Small" Class="py-8">
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-4">
+            Die Getränke-Funktion benötigt ein App-Update. Bitte die App neu laden.
+        </MudAlert>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Refresh"
+                   OnClick="@(() => Navigation.NavigateTo(Navigation.Uri, forceLoad: true))">
+            App neu laden
+        </MudButton>
+    </MudContainer>
+    return;
+}
+
 @* ── Toolbar ─────────────────────────────────────────────────────────────── *@
 <MudPaper Elevation="1" Class="pa-1 d-flex align-center flex-wrap gap-1"
           Style="position: sticky; top: 0; z-index: 10; background: var(--mud-palette-surface);">
@@ -117,6 +132,7 @@
 
     private bool _saving;
     private bool _canvasInitialized;
+    private bool _jsNotReady;
     private ElementReference _canvasContainer;
     private System.Timers.Timer? _autoSaveTimer;
 
@@ -126,6 +142,17 @@
     {
         if (firstRender)
         {
+            // Check if the new JS functions are available (SW might serve old cached JS)
+            var jsReady = await Js.InvokeAsync<bool>("eval",
+                "typeof window.localDb !== 'undefined' && typeof window.localDb.getDrinkNotesByGameId === 'function'");
+            if (!jsReady)
+            {
+                Logger.LogWarning("DrinkNote JS functions not available — app update required");
+                _jsNotReady = true;
+                StateHasChanged();
+                return;
+            }
+
             // Load existing notes for this game day (or all)
             await LoadNotesAsync();
 
@@ -326,9 +353,10 @@
 
     // ── Navigation ──────────────────────────────────────────────────────────
 
-    private void GoBack()
+    private async Task GoBack()
     {
-        Navigation.NavigateTo("/game");
+        await SaveCurrentPageAsync();
+        await Js.InvokeVoidAsync("history.back");
     }
 
     // ── Dispose ─────────────────────────────────────────────────────────────
