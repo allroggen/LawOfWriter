@@ -1,0 +1,356 @@
+@page "/getraenke"
+@page "/getraenke/{GameIdParam:int}"
+@using LawOfWriter.Models
+@using LawOfWriter.Services
+@inject LocalDbService LocalDbService
+@inject ILogger<DrinkNotes> Logger
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+@inject IJSRuntime Js
+@attribute [Authorize]
+@implements IAsyncDisposable
+
+<PageTitle>Getränke-Notizen</PageTitle>
+
+@* ── Toolbar ─────────────────────────────────────────────────────────────── *@
+<MudPaper Elevation="1" Class="pa-1 d-flex align-center flex-wrap gap-1"
+          Style="position: sticky; top: 0; z-index: 10; background: var(--mud-palette-surface);">
+
+    @* Back button when navigated from game *@
+    @if (GameIdParam.HasValue)
+    {
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                       OnClick="@GoBack"
+                       Size="Size.Small" />
+    }
+
+    @* Page navigation *@
+    <MudButtonGroup OverrideStyles="false" Size="Size.Small" Variant="Variant.Outlined" Class="mr-1">
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft"
+                       Disabled="@(!CanGoPrev)"
+                       OnClick="@PrevPage" />
+        <MudButton Variant="Variant.Text" Size="Size.Small"
+                   Style="pointer-events:none; min-width:50px;">
+            @(_currentPageIndex + 1) / @(_notes.Count)
+        </MudButton>
+        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
+                       Disabled="@(!CanGoNext)"
+                       OnClick="@NextPage" />
+    </MudButtonGroup>
+
+    <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
+
+    @* Color picker *@
+    @foreach (var c in _colors)
+    {
+        <MudIconButton Icon="@Icons.Material.Filled.Circle"
+                       Size="Size.Small"
+                       Style="@($"color:{c}; {(_selectedColor == c ? "border:2px solid var(--mud-palette-primary); border-radius:50%;" : "")}")"
+                       OnClick="@(() => SelectColor(c))" />
+    }
+
+    <MudDivider Vertical="true" FlexItem="true" Class="mx-1" />
+
+    @* Line width *@
+    @foreach (var w in _widths)
+    {
+        <MudButton Variant="@(_selectedWidth == w.Value ? Variant.Filled : Variant.Outlined)"
+                   Color="Color.Default"
+                   Size="Size.Small"
+                   OnClick="@(() => SelectWidth(w.Value))"
+                   Style="min-width: 40px;">
+            @w.Label
+        </MudButton>
+    }
+
+    <MudSpacer />
+
+    @* Actions *@
+    <MudIconButton Icon="@Icons.Material.Filled.Undo"
+                   Size="Size.Small"
+                   OnClick="@Undo" />
+    <MudIconButton Icon="@Icons.Material.Filled.NoteAdd"
+                   Size="Size.Small"
+                   Color="Color.Primary"
+                   OnClick="@AddNewPage" />
+    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                   Size="Size.Small"
+                   Color="Color.Error"
+                   OnClick="@ConfirmDeletePage" />
+</MudPaper>
+
+@* ── Canvas ──────────────────────────────────────────────────────────────── *@
+<div @ref="_canvasContainer" style="flex: 1 1 auto; overflow: hidden; position: relative; background: #fefefe;">
+    <canvas id="drinkCanvas" style="display: block; width: 100%; height: 100%; cursor: crosshair;"></canvas>
+</div>
+
+@* ── Auto-save indicator *@
+@if (_saving)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true"
+                       Style="position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;" />
+}
+
+@code {
+    [Parameter] public int? GameIdParam { get; set; }
+
+    // ── Colors & widths ─────────────────────────────────────────────────────
+    private static readonly string[] _colors = ["#000000", "#d32f2f", "#1565c0", "#2e7d32"];
+    private string _selectedColor = "#000000";
+
+    private record WidthOption(string Label, int Value);
+    private static readonly WidthOption[] _widths =
+    [
+        new("Dünn", 1),
+        new("Mittel", 3),
+        new("Dick", 6)
+    ];
+    private int _selectedWidth = 3;
+
+    // ── Pages / Notes ───────────────────────────────────────────────────────
+    private List<DrinkNote> _notes = [];
+    private int _currentPageIndex;
+    private DrinkNote? CurrentNote => _notes.Count > 0 ? _notes[_currentPageIndex] : null;
+    private bool CanGoPrev => _currentPageIndex > 0;
+    private bool CanGoNext => _currentPageIndex < _notes.Count - 1;
+
+    private bool _saving;
+    private bool _canvasInitialized;
+    private ElementReference _canvasContainer;
+    private System.Timers.Timer? _autoSaveTimer;
+
+    // ── Lifecycle ───────────────────────────────────────────────────────────
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Load existing notes for this game day (or all)
+            await LoadNotesAsync();
+
+            // If no notes yet, create the first blank page
+            if (_notes.Count == 0)
+            {
+                await AddNewPageInternal();
+            }
+
+            _currentPageIndex = _notes.Count - 1; // start on the latest page
+
+            // Init canvas
+            var dotNetRef = DotNetObjectReference.Create(this);
+            await Js.InvokeVoidAsync("drawingCanvas.initCanvas", "drinkCanvas", dotNetRef);
+            _canvasInitialized = true;
+
+            // Load the current page's strokes
+            await LoadCurrentPageStrokes();
+
+            // Setup auto-save timer (5 seconds after last change)
+            _autoSaveTimer = new System.Timers.Timer(5000);
+            _autoSaveTimer.AutoReset = false;
+            _autoSaveTimer.Elapsed += async (_, _) => await InvokeAsync(SaveCurrentPageAsync);
+
+            StateHasChanged();
+        }
+    }
+
+    // ── Canvas callbacks ────────────────────────────────────────────────────
+
+    [JSInvokable]
+    public void OnCanvasChanged()
+    {
+        // Reset auto-save timer on each stroke
+        _autoSaveTimer?.Stop();
+        _autoSaveTimer?.Start();
+    }
+
+    // ── Page navigation ─────────────────────────────────────────────────────
+
+    private async Task PrevPage()
+    {
+        if (!CanGoPrev) return;
+        await SaveCurrentPageAsync();
+        _currentPageIndex--;
+        await LoadCurrentPageStrokes();
+    }
+
+    private async Task NextPage()
+    {
+        if (!CanGoNext) return;
+        await SaveCurrentPageAsync();
+        _currentPageIndex++;
+        await LoadCurrentPageStrokes();
+    }
+
+    private async Task AddNewPage()
+    {
+        await SaveCurrentPageAsync();
+        await AddNewPageInternal();
+        _currentPageIndex = _notes.Count - 1;
+        await LoadCurrentPageStrokes();
+        StateHasChanged();
+    }
+
+    private async Task AddNewPageInternal()
+    {
+        var note = new DrinkNote
+        {
+            GameId = GameIdParam,
+            Label = $"Seite {_notes.Count + 1}",
+            CreatedAt = DateTime.UtcNow,
+            StrokeData = "[]"
+        };
+        var id = await LocalDbService.SaveDrinkNoteAsync(note);
+        note.Id = id;
+        _notes.Add(note);
+        Logger.LogInformation("Created new drink note page {Id} for game {GameId}", id, GameIdParam);
+    }
+
+    // ── Color & Width ───────────────────────────────────────────────────────
+
+    private async Task SelectColor(string color)
+    {
+        _selectedColor = color;
+        await Js.InvokeVoidAsync("drawingCanvas.setColor", color);
+    }
+
+    private async Task SelectWidth(int width)
+    {
+        _selectedWidth = width;
+        await Js.InvokeVoidAsync("drawingCanvas.setLineWidth", width);
+    }
+
+    // ── Actions ─────────────────────────────────────────────────────────────
+
+    private async Task Undo()
+    {
+        await Js.InvokeVoidAsync("drawingCanvas.undoStroke");
+        OnCanvasChanged(); // trigger auto-save
+    }
+
+    private async Task ConfirmDeletePage()
+    {
+        if (CurrentNote is null) return;
+
+        var result = await DialogService.ShowMessageBoxAsync(
+            "Seite löschen",
+            "Soll diese Seite wirklich gelöscht werden?",
+            yesText: "Löschen", cancelText: "Abbrechen");
+
+        if (result == true)
+        {
+            await DeleteCurrentPageAsync();
+        }
+    }
+
+    private async Task DeleteCurrentPageAsync()
+    {
+        if (CurrentNote?.Id is not null)
+        {
+            await LocalDbService.DeleteDrinkNoteAsync(CurrentNote.Id.Value);
+            Logger.LogInformation("Deleted drink note page {Id}", CurrentNote.Id);
+        }
+
+        _notes.RemoveAt(_currentPageIndex);
+
+        if (_notes.Count == 0)
+        {
+            await AddNewPageInternal();
+            _currentPageIndex = 0;
+        }
+        else if (_currentPageIndex >= _notes.Count)
+        {
+            _currentPageIndex = _notes.Count - 1;
+        }
+
+        await LoadCurrentPageStrokes();
+        StateHasChanged();
+    }
+
+    // ── Save / Load ─────────────────────────────────────────────────────────
+
+    private async Task SaveCurrentPageAsync()
+    {
+        if (!_canvasInitialized || CurrentNote is null) return;
+
+        try
+        {
+            _saving = true;
+            await InvokeAsync(StateHasChanged);
+
+            var strokeJson = await Js.InvokeAsync<string>("drawingCanvas.getStrokeData");
+            CurrentNote.StrokeData = strokeJson;
+            CurrentNote.UpdatedAt = DateTime.UtcNow;
+
+            var id = await LocalDbService.SaveDrinkNoteAsync(CurrentNote);
+            if (CurrentNote.Id is null)
+            {
+                CurrentNote.Id = id;
+            }
+
+            Logger.LogDebug("Auto-saved drink note page {Id}", CurrentNote.Id);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to auto-save drink note");
+        }
+        finally
+        {
+            _saving = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task LoadNotesAsync()
+    {
+        if (GameIdParam.HasValue)
+        {
+            _notes = await LocalDbService.GetDrinkNotesByGameIdAsync(GameIdParam.Value);
+        }
+        else
+        {
+            _notes = await LocalDbService.GetAllDrinkNotesAsync();
+        }
+
+        // Sort by creation date
+        _notes = _notes.OrderBy(n => n.CreatedAt).ToList();
+    }
+
+    private async Task LoadCurrentPageStrokes()
+    {
+        if (!_canvasInitialized) return;
+
+        var data = CurrentNote?.StrokeData ?? "[]";
+        await Js.InvokeVoidAsync("drawingCanvas.loadStrokeData", data);
+    }
+
+    // ── Navigation ──────────────────────────────────────────────────────────
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/game");
+    }
+
+    // ── Dispose ─────────────────────────────────────────────────────────────
+
+    public async ValueTask DisposeAsync()
+    {
+        // Save before leaving
+        await SaveCurrentPageAsync();
+
+        _autoSaveTimer?.Stop();
+        _autoSaveTimer?.Dispose();
+
+        if (_canvasInitialized)
+        {
+            try
+            {
+                await Js.InvokeVoidAsync("drawingCanvas.disposeCanvas");
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit already disconnected — safe to ignore
+            }
+        }
+    }
+}
