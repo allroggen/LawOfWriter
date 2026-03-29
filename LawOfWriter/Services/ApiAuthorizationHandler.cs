@@ -53,7 +53,7 @@ public class ApiAuthorizationHandler : DelegatingHandler
             _logger.LogWarning("API returned 401 Unauthorized for {Method} {Uri}. Attempting token refresh.", 
                 request.Method, request.RequestUri);
             
-            var refreshed = await _authService.RefreshTokenAsync();
+            var refreshed = await _authService.RefreshTokenAsync(forceRefresh: true);
             
             if (refreshed)
             {

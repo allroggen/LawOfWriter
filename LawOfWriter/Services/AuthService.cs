@@ -26,7 +26,7 @@ public class AuthService
     private const string RolesKey = "authRoles";
     private const string ImageBase = "imagebase";
     private const string ApiBaseUrl = "https://die.sinnnlosen.de/api";
-    private const int TokenExpiryHours = 6;
+    private const int TokenExpiryFallbackHours = 6;
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
     public AuthService(HttpClient httpClient, IJSRuntime jsRuntime, ILogger<AuthService> logger)
@@ -67,9 +67,48 @@ public class AuthService
         }
     }
 
+    /// <summary>
+    /// Parst den exp-Claim aus dem JWT-Payload (ohne Signaturvalidierung).
+    /// Gibt null zurück wenn das Parsen fehlschlägt.
+    /// </summary>
+    private DateTime? ParseJwtExpiry(string token)
+    {
+        try
+        {
+            var parts = token.Split('.');
+            if (parts.Length != 3)
+                return null;
+
+            var payload = parts[1];
+            // Base64url → Base64
+            payload = payload.Replace('-', '+').Replace('_', '/');
+            switch (payload.Length % 4)
+            {
+                case 2: payload += "=="; break;
+                case 3: payload += "="; break;
+            }
+
+            var bytes = Convert.FromBase64String(payload);
+            using var doc = JsonDocument.Parse(bytes);
+            if (doc.RootElement.TryGetProperty("exp", out var expElement))
+            {
+                var epoch = expElement.GetInt64();
+                return DateTimeOffset.FromUnixTimeSeconds(epoch).UtcDateTime;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse JWT expiry from token");
+        }
+        return null;
+    }
+
     private async Task SaveLoginResponseAsync(LoginResponseDto loginResponse)
     {
-        var expiry = DateTime.UtcNow.AddHours(TokenExpiryHours);
+        // Lese das echte Ablaufdatum aus dem JWT statt es client-seitig zu berechnen
+        var expiry = ParseJwtExpiry(loginResponse.Token) 
+                     ?? DateTime.UtcNow.AddHours(TokenExpiryFallbackHours);
+        _logger.LogInformation("Saving token with expiry {Expiry:O} (UTC)", expiry);
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", TokenKey, loginResponse.Token);
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", RefreshTokenKey, loginResponse.RefreshToken);
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", TokenExpiryKey, expiry.ToString("o"));
@@ -122,25 +161,34 @@ public class AuthService
         }
     }
 
-    public async Task<bool> RefreshTokenAsync()
+    public async Task<bool> RefreshTokenAsync(bool forceRefresh = false)
     {
         // If a refresh is already in progress, wait for it and return its result
         await _refreshLock.WaitAsync();
         try
         {
-            // Double-check: another caller may have already refreshed while we were waiting
             var token = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", TokenKey);
             var expiryString = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", TokenExpiryKey);
-            if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(expiryString)
+
+            // Double-check: another caller may have already refreshed while we were waiting.
+            // Skip this check when forceRefresh is true (z.B. nach einem 401 vom Server).
+            if (!forceRefresh
+                && !string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(expiryString)
                 && DateTime.TryParse(expiryString, out var expiry) && DateTime.UtcNow <= expiry)
             {
+                _logger.LogDebug("Token still valid after acquiring lock, skipping refresh");
                 return true; // Token already refreshed by another concurrent caller
             }
 
             var refreshToken = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", RefreshTokenKey);
 
             if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(refreshToken))
+            {
+                _logger.LogWarning("Cannot refresh: token or refresh token is missing");
                 return false;
+            }
+
+            _logger.LogInformation("Sending token refresh request (forceRefresh: {ForceRefresh})", forceRefresh);
 
             var refreshRequest = new RefreshTokenRequest
             {
@@ -155,11 +203,20 @@ public class AuthService
                 var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
                 if (loginResponse != null && !string.IsNullOrEmpty(loginResponse.Token))
                 {
+                    // Prüfe ob der Server tatsächlich einen neuen Token zurückgegeben hat
+                    if (loginResponse.Token == token)
+                    {
+                        _logger.LogWarning("Refresh endpoint returned the same token — server-side issue. Logging out.");
+                        return false;
+                    }
+
                     await SaveLoginResponseAsync(loginResponse);
+                    _logger.LogInformation("Token refresh completed successfully");
                     return true;
                 }
             }
 
+            _logger.LogWarning("Token refresh failed with status {StatusCode}", response.StatusCode);
             return false;
         }
         catch (Exception ex)
@@ -249,9 +306,9 @@ public class AuthService
 
     public async Task SetTokenAsync(string token)
     {
-        var expiry = DateTime.UtcNow.AddHours(TokenExpiryHours);
+        var expiry = ParseJwtExpiry(token) ?? DateTime.UtcNow.AddHours(TokenExpiryFallbackHours);
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", TokenKey, token);
-        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", TokenExpiryKey, expiry.ToString("o")); // ISO 8601 Format
+        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", TokenExpiryKey, expiry.ToString("o"));
         SetAuthorizationHeader(token);
     }
 
