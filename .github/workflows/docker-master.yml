@@ -1,0 +1,47 @@
+name: Build & Deploy — master
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+
+    environment: master
+
+    steps:
+      # 1️⃣ Repository auschecken
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2️⃣ Docker-Image bauen und in die Registry pushen
+      - name: Build and push Docker image
+        run: |
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login registry.lichtii.de \
+            --username "${{ secrets.REGISTRY_USERNAME }}" \
+            --password-stdin
+          docker build -t registry.lichtii.de/apps/lawofwriter:${{ github.run_number }} \
+                       -t registry.lichtii.de/apps/lawofwriter:latest .
+          docker push registry.lichtii.de/apps/lawofwriter:${{ github.run_number }}
+          docker push registry.lichtii.de/apps/lawofwriter:latest
+          docker logout registry.lichtii.de
+
+      # 3️⃣ Container auf dem Server neu deployen (SSH)
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            docker login registry.lichtii.de \
+              --username "${{ secrets.REGISTRY_USERNAME }}" \
+              --password "${{ secrets.REGISTRY_PASSWORD }}"
+            docker pull registry.lichtii.de/apps/lawofwriter:latest
+            docker rm -f writeroflaw 2>/dev/null || true
+            docker run -d -p 8090:80 --restart unless-stopped \
+              --name writeroflaw \
+              registry.lichtii.de/apps/lawofwriter:latest
+            docker logout registry.lichtii.de
